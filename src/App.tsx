@@ -240,8 +240,9 @@ function PredictorApp() {
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
 
   // Fetch matches on demand (called on login + manual refresh + after writes)
-  const fetchMatches = async () => {
-    if (!user) return;
+  // Returns the fetched match data so callers can pass it to fetchVoteCounts
+  const fetchMatches = async (): Promise<Match[]> => {
+    if (!user) return [];
     try {
       const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
       const q = query(
@@ -263,8 +264,10 @@ function PredictorApp() {
         const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
         return unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       });
+      return matchData;
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'matches');
+      return [];
     }
   };
 
@@ -322,7 +325,8 @@ function PredictorApp() {
   // Refresh everything - called when user hits refresh button
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchMatches(), fetchUserPredictions(), fetchVoteCounts()]);
+    const [freshMatches] = await Promise.all([fetchMatches(), fetchUserPredictions()]);
+    await fetchVoteCounts(freshMatches);
     if (activeTab === 'leaderboard') await fetchLeaderboard();
     setIsRefreshing(false);
   };
@@ -346,8 +350,8 @@ function PredictorApp() {
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      await fetchMatches();
-      await fetchVoteCounts();
+      const freshMatches = await fetchMatches();
+      await fetchVoteCounts(freshMatches);
       if (loading) setLoading(false);
     };
     load();
@@ -567,7 +571,8 @@ function PredictorApp() {
       } else {
         await fetchUserPredictions();
       }
-      await Promise.all([fetchMatches(), fetchVoteCounts()]);
+      const freshMatches = await fetchMatches();
+      await fetchVoteCounts(freshMatches);
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'batch-predictions');
@@ -639,7 +644,8 @@ function PredictorApp() {
       });
       
       await batch.commit();
-      await Promise.all([fetchMatches(), fetchVoteCounts()]);
+      const freshMatches = await fetchMatches();
+      await fetchVoteCounts(freshMatches);
       showToast("Vote counts recalculated successfully!");
     } catch (error) {
       console.error("Error recalculating votes", error);
