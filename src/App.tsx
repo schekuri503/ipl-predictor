@@ -217,7 +217,6 @@ function PredictorApp() {
   const [pendingPredictions, setPendingPredictions] = useState<Record<string, string>>({});
   const [savingPredictions, setSavingPredictions] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [lastRefresh, setLastRefresh] = useState<number>(0);
   const [showAdmin, setShowAdmin] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [recalculatingVotes, setRecalculatingVotes] = useState(false);
@@ -240,38 +239,15 @@ function PredictorApp() {
 
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
 
-  const fetchMatches = async (force = false) => {
-    if (!user) return;
-    if (!force && Date.now() - lastRefresh < 5 * 60 * 1000) return;
+  // fetchMatches removed - onSnapshot listener (effect #2) already keeps matches
+  // in real-time sync. It re-subscribes automatically when matchFilter changes.
+  // Manual refresh is unnecessary and wastes Firebase reads on free tier.
 
+  const handleRefresh = () => {
+    // Data is already live via onSnapshot - just show visual confirmation
     setIsRefreshing(true);
-    try {
-      const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
-      const q = query(
-        collection(db, 'matches'),
-        where('status', 'in', statusFilter),
-        orderBy('date', matchFilter === 'completed' ? 'desc' : 'asc'),
-        limit(matchFilter === 'completed' ? 20 : 15)
-      );
-      
-      const snap = await getDocs(q);
-      const matchData = snap.docs.map(doc => ({
-        ...doc.data(),
-        homeVotes: doc.data().homeVotes || 0,
-        awayVotes: doc.data().awayVotes || 0
-      } as Match));
-      
-      setMatches(prev => {
-        const otherMatches = prev.filter(m => !statusFilter.includes(m.status));
-        return [...otherMatches, ...matchData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      });
-      
-      setLastRefresh(Date.now());
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'matches');
-    } finally {
-      setIsRefreshing(false);
-    }
+    setTimeout(() => setIsRefreshing(false), 800);
+    showToast('Data is live and up to date!');
   };
 
   const fetchLeaderboard = async () => {
@@ -386,12 +362,8 @@ function PredictorApp() {
     }
   }, [activeTab]);
 
-  // Lazy load completed matches
-  useEffect(() => {
-    if (matchFilter === 'completed') {
-      fetchMatches(true);
-    }
-  }, [matchFilter]);
+  // Completed matches are loaded automatically by the onSnapshot listener
+  // in effect #2, which re-subscribes when matchFilter changes.
 
   // Fetch predictions for selected user (Admin only)
   useEffect(() => {
@@ -894,7 +866,7 @@ function PredictorApp() {
             
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => fetchMatches(true)}
+                onClick={() => handleRefresh()}
                 disabled={isRefreshing}
                 className={cn(
                   "p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-all group",
@@ -990,7 +962,7 @@ function PredictorApp() {
                   Match Schedule
                 </h2>
                 <button 
-                  onClick={() => fetchMatches(true)}
+                  onClick={() => handleRefresh()}
                   disabled={isRefreshing}
                   className={cn(
                     "sm:hidden p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-all",
@@ -1002,7 +974,7 @@ function PredictorApp() {
               </div>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => fetchMatches(true)}
+                  onClick={() => handleRefresh()}
                   disabled={isRefreshing}
                   className={cn(
                     "hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 text-gray-400 hover:text-white transition-all border border-white/10",
@@ -1041,7 +1013,7 @@ function PredictorApp() {
                   <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4 opacity-20" />
                   <p className="text-gray-500 font-bold">No {matchFilter === 'completed' ? 'completed' : 'upcoming'} matches found.</p>
                   <button 
-                    onClick={() => fetchMatches(true)}
+                    onClick={() => handleRefresh()}
                     className="mt-4 text-[#F27D26] text-xs font-bold hover:underline"
                   >
                     Try refreshing
