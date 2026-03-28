@@ -313,17 +313,24 @@ function PredictorApp() {
     return () => unsubAuth();
   }, []);
 
-  // 2. Fetch matches + predictions on login and when filter changes
+  // 2. Initial data load on login - fetch matches AND predictions together
+  //    so vote counts render correctly on first paint
   useEffect(() => {
     if (!user) return;
     const load = async () => {
-      await fetchMatches();
+      await Promise.all([fetchMatches(), fetchUserPredictions()]);
       if (loading) setLoading(false);
     };
     load();
-  }, [user, matchFilter]);
+  }, [user]);
 
-  // 3. User Profile (real-time for points updates) & Predictions (one-time fetch on login)
+  // 2b. Re-fetch matches when filter changes (predictions don't depend on filter)
+  useEffect(() => {
+    if (!user || loading) return;
+    fetchMatches();
+  }, [matchFilter]);
+
+  // 3. User Profile (real-time for points updates)
   useEffect(() => {
     if (!user) return;
 
@@ -347,9 +354,6 @@ function PredictorApp() {
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
-
-    // Fetch predictions once on login
-    fetchUserPredictions();
 
     return () => unsubProfile();
   }, [user]);
