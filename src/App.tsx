@@ -18,6 +18,8 @@ import {
   orderBy, 
   updateDoc,
   getDocs,
+  getDoc,
+  getDocFromServer,
   where,
   writeBatch,
   increment,
@@ -217,6 +219,7 @@ function PredictorApp() {
   const [pendingPredictions, setPendingPredictions] = useState<Record<string, string>>({});
   const [savingPredictions, setSavingPredictions] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState<number>(0);
   const [showAdmin, setShowAdmin] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [recalculatingVotes, setRecalculatingVotes] = useState(false);
@@ -239,15 +242,38 @@ function PredictorApp() {
 
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
 
-  // fetchMatches removed - onSnapshot listener (effect #2) already keeps matches
-  // in real-time sync. It re-subscribes automatically when matchFilter changes.
-  // Manual refresh is unnecessary and wastes Firebase reads on free tier.
+  const fetchMatches = async (force = false) => {
+    if (!user) return;
+    if (!force && Date.now() - lastRefresh < 5 * 60 * 1000) return;
 
-  const handleRefresh = () => {
-    // Data is already live via onSnapshot - just show visual confirmation
     setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 800);
-    showToast('Data is live and up to date!');
+    try {
+      const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
+      const q = query(
+        collection(db, 'matches'),
+        where('status', 'in', statusFilter),
+        orderBy('date', matchFilter === 'completed' ? 'desc' : 'asc'),
+        limit(matchFilter === 'completed' ? 20 : 15)
+      );
+      
+      const snap = await getDocs(q);
+      const matchData = snap.docs.map(doc => ({
+        ...doc.data(),
+        homeVotes: doc.data().homeVotes || 0,
+        awayVotes: doc.data().awayVotes || 0
+      } as Match));
+      
+      setMatches(prev => {
+        const otherMatches = prev.filter(m => !statusFilter.includes(m.status));
+        return [...otherMatches, ...matchData].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      });
+      
+      setLastRefresh(Date.now());
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'matches');
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const fetchLeaderboard = async () => {
@@ -263,11 +289,11 @@ function PredictorApp() {
     }
   };
 
-  // One-time fetch of user predictions on login (no persistent listener to save reads)
-  const fetchUserPredictions = async (userId: string) => {
+  const fetchUserPredictions = async () => {
+    if (!user) return;
     try {
-      const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', userId)));
-      setPredictions(snap.docs.map(d => d.data() as Prediction));
+      const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', user.uid)));
+      setPredictions(snap.docs.map(doc => doc.data() as Prediction));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'predictions');
     }
@@ -324,12 +350,11 @@ function PredictorApp() {
     return () => unsubMatches();
   }, [user, matchFilter]);
 
-  // 3. User Predictions (one-time fetch) & Profile (real-time for points/skips)
+  // 3. User Predictions & Profile
   useEffect(() => {
     if (!user) return;
 
-    // One-time fetch on login - saves Firebase reads vs onSnapshot listener
-    fetchUserPredictions(user.uid);
+    fetchUserPredictions();
 
     const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
       if (snap.exists()) {
@@ -362,8 +387,12 @@ function PredictorApp() {
     }
   }, [activeTab]);
 
-  // Completed matches are loaded automatically by the onSnapshot listener
-  // in effect #2, which re-subscribes when matchFilter changes.
+  // Lazy load completed matches
+  useEffect(() => {
+    if (matchFilter === 'completed') {
+      fetchMatches(true);
+    }
+  }, [matchFilter]);
 
   // Fetch predictions for selected user (Admin only)
   useEffect(() => {
@@ -444,7 +473,7 @@ function PredictorApp() {
           }, { merge: true });
         });
         await batch.commit();
-        // No need to fetchMatches - onSnapshot listener will pick up changes
+        fetchMatches(true);
       }
     } catch (error) {
       console.error("Error syncing schedule", error);
@@ -550,33 +579,15 @@ function PredictorApp() {
         }
       });
       
-      // Update local state directly - no extra Firebase reads needed
-      if (selectedUserForAdmin) {
-        setAdminPredictions(prev => {
-          let updated = [...prev];
-          for (const [matchId, team] of Object.entries(pendingPredictions)) {
-            const predictionId = `${targetUserId}_${matchId}`;
-            updated = updated.filter(p => p.matchId !== matchId);
-            if (team !== '') {
-              updated.push({ id: predictionId, userId: targetUserId, matchId, predictedWinner: team, timestamp: new Date().toISOString() });
-            }
-          }
-          return updated;
-        });
-      } else {
-        setPredictions(prev => {
-          let updated = [...prev];
-          for (const [matchId, team] of Object.entries(pendingPredictions)) {
-            const predictionId = `${targetUserId}_${matchId}`;
-            updated = updated.filter(p => p.matchId !== matchId);
-            if (team !== '') {
-              updated.push({ id: predictionId, userId: targetUserId, matchId, predictedWinner: team, timestamp: new Date().toISOString() });
-            }
-          }
-          return updated;
-        });
-      }
       setPendingPredictions({});
+      if (selectedUserForAdmin) {
+        // Refresh admin predictions
+        const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
+        setAdminPredictions(snap.docs.map(doc => doc.data() as Prediction));
+      } else {
+        fetchUserPredictions();
+      }
+      fetchMatches(true);
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'batch-predictions');
@@ -604,7 +615,7 @@ function PredictorApp() {
     try {
       await updateDoc(doc(db, 'matches', matchId), updates);
       setEditingMatch(null);
-      // No need to fetchMatches - onSnapshot listener will pick up changes
+      fetchMatches(true);
       showToast("Match updated successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `matches/${matchId}`);
@@ -649,7 +660,7 @@ function PredictorApp() {
       
       await batch.commit();
       showToast("Vote counts recalculated successfully!");
-      // No need to fetchMatches - onSnapshot listener will pick up changes
+      fetchMatches(true);
     } catch (error) {
       console.error("Error recalculating votes", error);
       showToast("Failed to recalculate votes.", "error");
@@ -768,7 +779,7 @@ function PredictorApp() {
           <div className="mb-8 flex justify-center">
             <div className="relative group">
               <div className="absolute -inset-6 bg-gradient-to-r from-[#F27D26]/30 via-blue-500/20 to-[#FFD700]/30 blur-3xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-1000 animate-pulse" />
-              <div className="w-40 h-40 flex items-center justify-center bg-[#1A1D23] rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(242,125,38,0.3)] relative z-10 p-3 overflow-hidden">
+              <div className="w-40 h-40 flex items-center justify-center bg-[#1A1D23] rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(242,125,38,0.3)] relative z-10 p-6 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(242,125,38,0.1)_0%,transparent_70%)]" />
                 <img 
@@ -837,7 +848,7 @@ function PredictorApp() {
             <div className="flex items-center gap-4">
               <div className="relative group">
                 <div className="absolute -inset-2 bg-gradient-to-r from-[#F27D26]/30 to-blue-500/20 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="w-20 h-20 flex items-center justify-center bg-[#1A1D23] rounded-2xl border border-white/10 shadow-2xl relative z-10 p-1 overflow-hidden ring-1 ring-white/5">
+                <div className="w-20 h-20 flex items-center justify-center bg-[#1A1D23] rounded-2xl border border-white/10 shadow-2xl relative z-10 p-2 overflow-hidden ring-1 ring-white/5">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
                   <img 
                     src={APP_LOGO} 
@@ -866,7 +877,7 @@ function PredictorApp() {
             
             <div className="flex items-center gap-3">
               <button 
-                onClick={() => handleRefresh()}
+                onClick={() => fetchMatches(true)}
                 disabled={isRefreshing}
                 className={cn(
                   "p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-all group",
@@ -962,7 +973,7 @@ function PredictorApp() {
                   Match Schedule
                 </h2>
                 <button 
-                  onClick={() => handleRefresh()}
+                  onClick={() => fetchMatches(true)}
                   disabled={isRefreshing}
                   className={cn(
                     "sm:hidden p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-all",
@@ -974,7 +985,7 @@ function PredictorApp() {
               </div>
               <div className="flex items-center gap-2">
                 <button 
-                  onClick={() => handleRefresh()}
+                  onClick={() => fetchMatches(true)}
                   disabled={isRefreshing}
                   className={cn(
                     "hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 text-gray-400 hover:text-white transition-all border border-white/10",
@@ -1013,7 +1024,7 @@ function PredictorApp() {
                   <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4 opacity-20" />
                   <p className="text-gray-500 font-bold">No {matchFilter === 'completed' ? 'completed' : 'upcoming'} matches found.</p>
                   <button 
-                    onClick={() => handleRefresh()}
+                    onClick={() => fetchMatches(true)}
                     className="mt-4 text-[#F27D26] text-xs font-bold hover:underline"
                   >
                     Try refreshing
@@ -1071,14 +1082,6 @@ function PredictorApp() {
                 }
                 
                 const totalVotes = voteCounts[match.homeTeam] + voteCounts[match.awayTeam];
-
-                // Dynamic odds: losers/winners ratio (how much a correct prediction earns)
-                const homeVoteCount = voteCounts[match.homeTeam] || 0;
-                const awayVoteCount = voteCounts[match.awayTeam] || 0;
-                const dynamicOdds = {
-                  home: homeVoteCount > 0 ? awayVoteCount / homeVoteCount : 0,
-                  away: awayVoteCount > 0 ? homeVoteCount / awayVoteCount : 0
-                };
                 
                 return (
                   <motion.div 
@@ -1143,16 +1146,16 @@ function PredictorApp() {
                           <TeamLogo teamCode={match.homeTeam} size="lg" />
                           <div className="flex flex-col items-center">
                             <span className="font-bold text-sm text-center">{TEAMS[match.homeTeam as keyof typeof TEAMS]?.name}</span>
-                            {totalVotes > 0 && (
+                            {match.odds && match.odds.home !== undefined && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{dynamicOdds.home.toFixed(2)}</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{match.odds.home}</span>
                                 <span className="text-[7px] text-gray-500 font-bold uppercase">pts</span>
                               </div>
                             )}
                             {match.homeScore && (
                               <span className="text-lg font-black text-white mt-1">{match.homeScore}</span>
                             )}
-                            <button
+                            <button 
                               onClick={() => setShowVoters({ matchId: match.id, teamCode: match.homeTeam })}
                               className="text-[11px] font-black text-[#F27D26] mt-2 hover:underline flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-[#F27D26]/20 transition-all hover:bg-[#F27D26]/10"
                             >
@@ -1174,16 +1177,16 @@ function PredictorApp() {
                           <TeamLogo teamCode={match.awayTeam} size="lg" />
                           <div className="flex flex-col items-center">
                             <span className="font-bold text-sm text-center">{TEAMS[match.awayTeam as keyof typeof TEAMS]?.name}</span>
-                            {totalVotes > 0 && (
+                            {match.odds && match.odds.away !== undefined && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{dynamicOdds.away.toFixed(2)}</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{match.odds.away}</span>
                                 <span className="text-[7px] text-gray-500 font-bold uppercase">pts</span>
                               </div>
                             )}
                             {match.awayScore && (
                               <span className="text-lg font-black text-white mt-1">{match.awayScore}</span>
                             )}
-                            <button
+                            <button 
                               onClick={() => setShowVoters({ matchId: match.id, teamCode: match.awayTeam })}
                               className="text-[11px] font-black text-[#F27D26] mt-2 hover:underline flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-[#F27D26]/20 transition-all hover:bg-[#F27D26]/10"
                             >
