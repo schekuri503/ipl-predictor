@@ -287,7 +287,15 @@ function PredictorApp() {
     }
   };
 
-  // fetchUserPredictions removed - using real-time onSnapshot listener instead
+  // One-time fetch of user predictions on login (no persistent listener to save reads)
+  const fetchUserPredictions = async (userId: string) => {
+    try {
+      const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', userId)));
+      setPredictions(snap.docs.map(d => d.data() as Prediction));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'predictions');
+    }
+  };
 
   // 1. Auth Listener
   useEffect(() => {
@@ -340,17 +348,12 @@ function PredictorApp() {
     return () => unsubMatches();
   }, [user, matchFilter]);
 
-  // 3. User Predictions & Profile (real-time listeners)
+  // 3. User Predictions (one-time fetch) & Profile (real-time for points/skips)
   useEffect(() => {
     if (!user) return;
 
-    // Real-time predictions listener - loads votes immediately on login and stays live
-    const predsQuery = query(collection(db, 'predictions'), where('userId', '==', user.uid));
-    const unsubPredictions = onSnapshot(predsQuery, (snap) => {
-      setPredictions(snap.docs.map(d => d.data() as Prediction));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'predictions');
-    });
+    // One-time fetch on login - saves Firebase reads vs onSnapshot listener
+    fetchUserPredictions(user.uid);
 
     const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
       if (snap.exists()) {
@@ -373,10 +376,7 @@ function PredictorApp() {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
 
-    return () => {
-      unsubPredictions();
-      unsubProfile();
-    };
+    return () => unsubProfile();
   }, [user]);
 
   // Lazy load leaderboard
@@ -578,13 +578,33 @@ function PredictorApp() {
         }
       });
       
-      setPendingPredictions({});
+      // Update local state directly - no extra Firebase reads needed
       if (selectedUserForAdmin) {
-        // Refresh admin predictions (no real-time listener for admin view)
-        const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
-        setAdminPredictions(snap.docs.map(doc => doc.data() as Prediction));
+        setAdminPredictions(prev => {
+          let updated = [...prev];
+          for (const [matchId, team] of Object.entries(pendingPredictions)) {
+            const predictionId = `${targetUserId}_${matchId}`;
+            updated = updated.filter(p => p.matchId !== matchId);
+            if (team !== '') {
+              updated.push({ id: predictionId, userId: targetUserId, matchId, predictedWinner: team, timestamp: new Date().toISOString() });
+            }
+          }
+          return updated;
+        });
+      } else {
+        setPredictions(prev => {
+          let updated = [...prev];
+          for (const [matchId, team] of Object.entries(pendingPredictions)) {
+            const predictionId = `${targetUserId}_${matchId}`;
+            updated = updated.filter(p => p.matchId !== matchId);
+            if (team !== '') {
+              updated.push({ id: predictionId, userId: targetUserId, matchId, predictedWinner: team, timestamp: new Date().toISOString() });
+            }
+          }
+          return updated;
+        });
       }
-      // No need to fetchUserPredictions or fetchMatches - real-time listeners handle updates
+      setPendingPredictions({});
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'batch-predictions');
