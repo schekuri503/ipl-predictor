@@ -12,7 +12,7 @@ export const TEAMS = {
   DC: { name: 'Delhi Capitals', color: '#00008B', logo: 'https://scores.iplt20.com/ipl/teamlogos/DC.png' },
   PBKS: { name: 'Punjab Kings', color: '#D71920', logo: 'https://scores.iplt20.com/ipl/teamlogos/PBKS.png' },
 };
-export const APP_LOGO = "/ipl-adda-logo.png";
+export const APP_LOGO = "/ipl-adda-logo.jpeg";
 
 export const INITIAL_MATCHES: Match[] = [
   { id: 'ipl_2026_1', homeTeam: 'RCB', awayTeam: 'SRH', date: '2026-03-28T09:00:00-05:00', dateIST: '28 Mar 2026, 7:30 PM IST', venue: 'Bengaluru', status: 'UPCOMING', type: 'REGULAR', odds: { home: 1.85, away: 2.10 }, homeVotes: 0, awayVotes: 0 },
