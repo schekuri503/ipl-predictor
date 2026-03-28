@@ -20,7 +20,6 @@ import {
   getDocs,
   where,
   writeBatch,
-  increment,
   runTransaction,
   limit
 } from 'firebase/firestore';
@@ -236,6 +235,7 @@ function PredictorApp() {
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
+  const [liveVoteCounts, setLiveVoteCounts] = useState<Record<string, Record<string, number>>>({});
 
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
 
@@ -279,6 +279,35 @@ function PredictorApp() {
     }
   };
 
+  // Fetch vote counts from predictions collection (source of truth)
+  const fetchVoteCounts = async (matchList?: Match[]) => {
+    const targetMatches = matchList || matches;
+    if (targetMatches.length === 0) return;
+    try {
+      const matchIds = targetMatches.map(m => m.id);
+      const counts: Record<string, Record<string, number>> = {};
+
+      // Firestore 'in' queries support up to 30 items
+      for (let i = 0; i < matchIds.length; i += 30) {
+        const chunk = matchIds.slice(i, i + 30);
+        const q = query(
+          collection(db, 'predictions'),
+          where('matchId', 'in', chunk)
+        );
+        const snap = await getDocs(q);
+        snap.docs.forEach(d => {
+          const pred = d.data() as Prediction;
+          if (!counts[pred.matchId]) counts[pred.matchId] = {};
+          counts[pred.matchId][pred.predictedWinner] = (counts[pred.matchId][pred.predictedWinner] || 0) + 1;
+        });
+      }
+
+      setLiveVoteCounts(counts);
+    } catch (error) {
+      console.error('Error fetching vote counts:', error);
+    }
+  };
+
   // Fetch leaderboard on demand
   const fetchLeaderboard = async () => {
     if (!user) return;
@@ -293,7 +322,7 @@ function PredictorApp() {
   // Refresh everything - called when user hits refresh button
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await Promise.all([fetchMatches(), fetchUserPredictions()]);
+    await Promise.all([fetchMatches(), fetchUserPredictions(), fetchVoteCounts()]);
     if (activeTab === 'leaderboard') await fetchLeaderboard();
     setIsRefreshing(false);
   };
@@ -313,11 +342,12 @@ function PredictorApp() {
     return () => unsubAuth();
   }, []);
 
-  // 2. Fetch matches + predictions on login and when filter changes
+  // 2. Fetch matches + vote counts on login and when filter changes
   useEffect(() => {
     if (!user) return;
     const load = async () => {
       await fetchMatches();
+      await fetchVoteCounts();
       if (loading) setLoading(false);
     };
     load();
@@ -515,12 +545,6 @@ function PredictorApp() {
         for (const [matchId, team] of Object.entries(pendingPredictions)) {
           const predictionId = `${targetUserId}_${matchId}`;
           const predictionRef = doc(db, 'predictions', predictionId);
-          const matchRef = doc(db, 'matches', matchId);
-          
-          const oldPredSnap = await transaction.get(predictionRef);
-          const oldPred = oldPredSnap.data() as Prediction | undefined;
-          const matchSnap = await transaction.get(matchRef);
-          const match = matchSnap.data() as Match;
 
           if (team === '') {
             transaction.delete(predictionRef);
@@ -533,18 +557,6 @@ function PredictorApp() {
               timestamp: new Date().toISOString()
             });
           }
-
-          // Update match vote counts (denormalized for cheap reads)
-          if (oldPred?.predictedWinner !== team) {
-            if (oldPred) {
-              const oldField = oldPred.predictedWinner === match.homeTeam ? 'homeVotes' : 'awayVotes';
-              transaction.update(matchRef, { [oldField]: increment(-1) });
-            }
-            if (team !== '') {
-              const newField = team === match.homeTeam ? 'homeVotes' : 'awayVotes';
-              transaction.update(matchRef, { [newField]: increment(1) });
-            }
-          }
         }
       });
       
@@ -555,7 +567,7 @@ function PredictorApp() {
       } else {
         await fetchUserPredictions();
       }
-      await fetchMatches();
+      await Promise.all([fetchMatches(), fetchVoteCounts()]);
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'batch-predictions');
@@ -627,7 +639,7 @@ function PredictorApp() {
       });
       
       await batch.commit();
-      await fetchMatches();
+      await Promise.all([fetchMatches(), fetchVoteCounts()]);
       showToast("Vote counts recalculated successfully!");
     } catch (error) {
       console.error("Error recalculating votes", error);
@@ -1023,10 +1035,10 @@ function PredictorApp() {
                 const isLocked = isAfter(new Date(), parseISO(match.date)) || match.status !== 'UPCOMING';
                 const hasPredicted = !!prediction;
                 
-                // Use denormalized vote counts from match document for maximum efficiency
+                // Use live vote counts computed from predictions (source of truth)
                 const voteCounts = {
-                  [match.homeTeam]: match.homeVotes || 0,
-                  [match.awayTeam]: match.awayVotes || 0
+                  [match.homeTeam]: liveVoteCounts[match.id]?.[match.homeTeam] || 0,
+                  [match.awayTeam]: liveVoteCounts[match.id]?.[match.awayTeam] || 0
                 };
                 
                 const savedPrediction = currentPredictions.find(p => p.matchId === match.id);
