@@ -18,8 +18,6 @@ import {
   orderBy, 
   updateDoc,
   getDocs,
-  getDoc,
-  getDocFromServer,
   where,
   writeBatch,
   increment,
@@ -289,15 +287,7 @@ function PredictorApp() {
     }
   };
 
-  const fetchUserPredictions = async () => {
-    if (!user) return;
-    try {
-      const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', user.uid)));
-      setPredictions(snap.docs.map(doc => doc.data() as Prediction));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.LIST, 'predictions');
-    }
-  };
+  // fetchUserPredictions removed - using real-time onSnapshot listener instead
 
   // 1. Auth Listener
   useEffect(() => {
@@ -350,11 +340,17 @@ function PredictorApp() {
     return () => unsubMatches();
   }, [user, matchFilter]);
 
-  // 3. User Predictions & Profile
+  // 3. User Predictions & Profile (real-time listeners)
   useEffect(() => {
     if (!user) return;
 
-    fetchUserPredictions();
+    // Real-time predictions listener - loads votes immediately on login and stays live
+    const predsQuery = query(collection(db, 'predictions'), where('userId', '==', user.uid));
+    const unsubPredictions = onSnapshot(predsQuery, (snap) => {
+      setPredictions(snap.docs.map(d => d.data() as Prediction));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'predictions');
+    });
 
     const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
       if (snap.exists()) {
@@ -377,7 +373,10 @@ function PredictorApp() {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
 
-    return () => unsubProfile();
+    return () => {
+      unsubPredictions();
+      unsubProfile();
+    };
   }, [user]);
 
   // Lazy load leaderboard
@@ -473,7 +472,7 @@ function PredictorApp() {
           }, { merge: true });
         });
         await batch.commit();
-        fetchMatches(true);
+        // No need to fetchMatches - onSnapshot listener will pick up changes
       }
     } catch (error) {
       console.error("Error syncing schedule", error);
@@ -581,13 +580,11 @@ function PredictorApp() {
       
       setPendingPredictions({});
       if (selectedUserForAdmin) {
-        // Refresh admin predictions
+        // Refresh admin predictions (no real-time listener for admin view)
         const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
         setAdminPredictions(snap.docs.map(doc => doc.data() as Prediction));
-      } else {
-        fetchUserPredictions();
       }
-      fetchMatches(true);
+      // No need to fetchUserPredictions or fetchMatches - real-time listeners handle updates
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'batch-predictions');
@@ -615,7 +612,7 @@ function PredictorApp() {
     try {
       await updateDoc(doc(db, 'matches', matchId), updates);
       setEditingMatch(null);
-      fetchMatches(true);
+      // No need to fetchMatches - onSnapshot listener will pick up changes
       showToast("Match updated successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `matches/${matchId}`);
@@ -660,7 +657,7 @@ function PredictorApp() {
       
       await batch.commit();
       showToast("Vote counts recalculated successfully!");
-      fetchMatches(true);
+      // No need to fetchMatches - onSnapshot listener will pick up changes
     } catch (error) {
       console.error("Error recalculating votes", error);
       showToast("Failed to recalculate votes.", "error");
@@ -779,7 +776,7 @@ function PredictorApp() {
           <div className="mb-8 flex justify-center">
             <div className="relative group">
               <div className="absolute -inset-6 bg-gradient-to-r from-[#F27D26]/30 via-blue-500/20 to-[#FFD700]/30 blur-3xl rounded-full opacity-60 group-hover:opacity-100 transition-opacity duration-1000 animate-pulse" />
-              <div className="w-40 h-40 flex items-center justify-center bg-[#1A1D23] rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(242,125,38,0.3)] relative z-10 p-6 overflow-hidden">
+              <div className="w-40 h-40 flex items-center justify-center bg-[#1A1D23] rounded-[2.5rem] border border-white/10 shadow-[0_0_50px_rgba(242,125,38,0.3)] relative z-10 p-3 overflow-hidden">
                 <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20" />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(242,125,38,0.1)_0%,transparent_70%)]" />
                 <img 
@@ -848,7 +845,7 @@ function PredictorApp() {
             <div className="flex items-center gap-4">
               <div className="relative group">
                 <div className="absolute -inset-2 bg-gradient-to-r from-[#F27D26]/30 to-blue-500/20 blur-xl rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                <div className="w-20 h-20 flex items-center justify-center bg-[#1A1D23] rounded-2xl border border-white/10 shadow-2xl relative z-10 p-2 overflow-hidden ring-1 ring-white/5">
+                <div className="w-20 h-20 flex items-center justify-center bg-[#1A1D23] rounded-2xl border border-white/10 shadow-2xl relative z-10 p-1 overflow-hidden ring-1 ring-white/5">
                   <div className="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent" />
                   <img 
                     src={APP_LOGO} 
@@ -1082,6 +1079,14 @@ function PredictorApp() {
                 }
                 
                 const totalVotes = voteCounts[match.homeTeam] + voteCounts[match.awayTeam];
+
+                // Dynamic odds: losers/winners ratio (how much a correct prediction earns)
+                const homeVoteCount = voteCounts[match.homeTeam] || 0;
+                const awayVoteCount = voteCounts[match.awayTeam] || 0;
+                const dynamicOdds = {
+                  home: homeVoteCount > 0 ? awayVoteCount / homeVoteCount : 0,
+                  away: awayVoteCount > 0 ? homeVoteCount / awayVoteCount : 0
+                };
                 
                 return (
                   <motion.div 
@@ -1146,16 +1151,16 @@ function PredictorApp() {
                           <TeamLogo teamCode={match.homeTeam} size="lg" />
                           <div className="flex flex-col items-center">
                             <span className="font-bold text-sm text-center">{TEAMS[match.homeTeam as keyof typeof TEAMS]?.name}</span>
-                            {match.odds && match.odds.home !== undefined && (
+                            {totalVotes > 0 && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{match.odds.home}</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{dynamicOdds.home.toFixed(2)}</span>
                                 <span className="text-[7px] text-gray-500 font-bold uppercase">pts</span>
                               </div>
                             )}
                             {match.homeScore && (
                               <span className="text-lg font-black text-white mt-1">{match.homeScore}</span>
                             )}
-                            <button 
+                            <button
                               onClick={() => setShowVoters({ matchId: match.id, teamCode: match.homeTeam })}
                               className="text-[11px] font-black text-[#F27D26] mt-2 hover:underline flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-[#F27D26]/20 transition-all hover:bg-[#F27D26]/10"
                             >
@@ -1177,16 +1182,16 @@ function PredictorApp() {
                           <TeamLogo teamCode={match.awayTeam} size="lg" />
                           <div className="flex flex-col items-center">
                             <span className="font-bold text-sm text-center">{TEAMS[match.awayTeam as keyof typeof TEAMS]?.name}</span>
-                            {match.odds && match.odds.away !== undefined && (
+                            {totalVotes > 0 && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{match.odds.away}</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{dynamicOdds.away.toFixed(2)}</span>
                                 <span className="text-[7px] text-gray-500 font-bold uppercase">pts</span>
                               </div>
                             )}
                             {match.awayScore && (
                               <span className="text-lg font-black text-white mt-1">{match.awayScore}</span>
                             )}
-                            <button 
+                            <button
                               onClick={() => setShowVoters({ matchId: match.id, teamCode: match.awayTeam })}
                               className="text-[11px] font-black text-[#F27D26] mt-2 hover:underline flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-full border border-[#F27D26]/20 transition-all hover:bg-[#F27D26]/10"
                             >
