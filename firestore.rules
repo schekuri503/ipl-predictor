@@ -1,0 +1,117 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId}
+// Fields:
+//   - uid: string (required) - The user's unique ID
+//   - displayName: string (required) - The user's display name
+//   - photoURL: string (optional) - URL to the user's profile photo
+//   - totalPoints: number (required) - The user's total points
+//   - skipsUsed: number (required) - Number of skips used by the user
+//   - role: string (required) - User role ('admin' or 'user')
+//
+// Collection: matches
+// Document ID: {matchId} (e.g., ipl_2026_1)
+// Fields:
+//   - id: string (required) - Match ID
+//   - homeTeam: string (required) - Home team code
+//   - awayTeam: string (required) - Away team code
+//   - date: string (required, ISO 8601) - Match date and time
+//   - venue: string (required) - Match venue
+//   - status: string (required) - 'UPCOMING', 'LIVE', 'COMPLETED'
+//   - winner: string (optional) - Winning team code
+//   - type: string (required) - 'REGULAR', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'
+//
+// Collection: predictions
+// Document ID: {userId}_{matchId}
+// Fields:
+//   - id: string (required) - Prediction ID (matches document ID)
+//   - userId: string (required) - ID of the user who made the prediction
+//   - matchId: string (required) - ID of the match
+//   - predictedWinner: string (required) - Team code of the predicted winner
+//   - timestamp: string (required, ISO 8601) - When the prediction was made
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && 
+        ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+         (request.auth.token.email == "s.chaitanya.503@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isOwner(userId) && 
+        isValidUser(request.resource.data) &&
+        (request.resource.data.role == 'user' || isAdmin()); // Allow admin to create themselves as 'admin'
+      allow update: if isAuthenticated() && 
+        isValidUser(request.resource.data) &&
+        ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    function isValidUser(data) {
+      return data.uid == request.auth.uid &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+             data.totalPoints is number &&
+             data.skipsUsed is number &&
+             data.role in ['admin', 'user'];
+    }
+
+    match /matches/{matchId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    match /predictions/{predictionId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && 
+        isValidPrediction(request.resource.data, predictionId);
+      allow update: if isAuthenticated() && 
+        isValidPrediction(request.resource.data, predictionId) &&
+        (isOwner(resource.data.userId) || isAdmin());
+      allow delete: if isOwner(resource.data.userId) || isAdmin();
+    }
+
+    function isValidPrediction(data, id) {
+      return hasRequiredFields(['id', 'userId', 'matchId', 'predictedWinner', 'timestamp']) &&
+             data.id == id &&
+             data.userId == request.auth.uid &&
+             data.matchId is string && data.matchId.size() > 0 &&
+             data.predictedWinner is string && data.predictedWinner.size() > 0 &&
+             data.timestamp is string &&
+             id == request.auth.uid + "_" + data.matchId;
+    }
+  }
+}

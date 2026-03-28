@@ -1,0 +1,60 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and stats",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "totalPoints": { "type": "number" },
+        "skipsUsed": { "type": "number" }
+      },
+      "required": ["uid", "displayName"]
+    },
+    "Match": {
+      "title": "Match",
+      "description": "IPL Match details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "homeTeam": { "type": "string" },
+        "awayTeam": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "venue": { "type": "string" },
+        "status": { "type": "string", "enum": ["UPCOMING", "LIVE", "COMPLETED"] },
+        "winner": { "type": "string" },
+        "type": { "type": "string", "enum": ["REGULAR", "QUARTER_FINAL", "SEMI_FINAL", "FINAL"] }
+      },
+      "required": ["id", "homeTeam", "awayTeam", "date", "status", "type"]
+    },
+    "Prediction": {
+      "title": "Prediction",
+      "description": "User prediction for a match",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "matchId": { "type": "string" },
+        "predictedWinner": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "matchId", "predictedWinner", "timestamp"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/matches/{matchId}": {
+      "schema": "Match",
+      "description": "Match schedule"
+    },
+    "/predictions/{predictionId}": {
+      "schema": "Prediction",
+      "description": "User predictions (ID is userId_matchId)"
+    }
+  }
+}

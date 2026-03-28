@@ -1,0 +1,5 @@
+{
+  "note": "This file contains the Google Sheets synchronization logic that was temporarily disabled due to OpenSSL private key decoding errors (error:1E08010C:DECODER routines::unsupported).",
+  "server_logic": "app.post('/api/sync-sheets', async (req, res) => {\n    const { matchId, userId, userName, prediction } = req.body;\n    const SPREADSHEET_ID = process.env.GOOGLE_SHEETS_ID;\n    const GOOGLE_SERVICE_ACCOUNT_EMAIL = process.env.GOOGLE_SERVICE_ACCOUNT_EMAIL;\n    let GOOGLE_PRIVATE_KEY = process.env.GOOGLE_PRIVATE_KEY;\n\n    if (!SPREADSHEET_ID || !GOOGLE_SERVICE_ACCOUNT_EMAIL || !GOOGLE_PRIVATE_KEY) {\n      return res.status(500).json({ error: 'Google Sheets not configured' });\n    }\n\n    // ... Private key formatting logic ...\n    // ... Google Sheets API calls ...\n  });",
+  "client_logic": "fetch('/api/sync-sheets', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ matchId, userId, userName, prediction })\n  })"
+}
