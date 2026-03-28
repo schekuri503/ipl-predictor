@@ -56,7 +56,7 @@ import { twMerge } from 'tailwind-merge';
 
 import { auth, db, signInWithGoogle, logout } from './firebase';
 import { Match, UserProfile, Prediction, MatchStatus, MatchType } from './types';
-import { TEAMS, INITIAL_MATCHES, TOTAL_SKIPS_ALLOWED, APP_LOGO } from './constants';
+import { TEAMS, TOTAL_SKIPS_ALLOWED, APP_LOGO } from './constants';
 import { fetchUpdatedSchedule } from './services/geminiService';
 
 // --- Error Handling ---
@@ -602,9 +602,18 @@ function PredictorApp() {
       const batch = writeBatch(db);
       batch.delete(doc(db, 'users', userId));
       const predsSnap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', userId)));
-      predsSnap.forEach(p => batch.delete(p.ref));
+      predsSnap.forEach(p => {
+        const pred = p.data() as Prediction;
+        const match = matches.find(m => m.id === pred.matchId);
+        if (match) {
+          const field = pred.predictedWinner === match.homeTeam ? 'homeVotes' : 'awayVotes';
+          batch.update(doc(db, 'matches', pred.matchId), { [field]: increment(-1) });
+        }
+        batch.delete(p.ref);
+      });
       await batch.commit();
       setUserToDelete(null);
+      fetchMatches(true);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
     }
