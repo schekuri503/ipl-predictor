@@ -239,13 +239,64 @@ function PredictorApp() {
 
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
 
-  // Data is live via onSnapshot - refresh just shows visual feedback
-  const handleRefresh = () => {
-    setIsRefreshing(true);
-    setTimeout(() => setIsRefreshing(false), 800);
+  // Fetch matches on demand (called on login + manual refresh + after writes)
+  const fetchMatches = async () => {
+    if (!user) return;
+    try {
+      const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
+      const q = query(
+        collection(db, 'matches'),
+        where('status', 'in', statusFilter),
+        orderBy('date', matchFilter === 'completed' ? 'desc' : 'asc'),
+        limit(matchFilter === 'completed' ? 40 : 30)
+      );
+      const snap = await getDocs(q);
+      const matchData = snap.docs.map(d => ({
+        ...d.data(),
+        homeVotes: d.data().homeVotes || 0,
+        awayVotes: d.data().awayVotes || 0
+      } as Match));
+
+      setMatches(prev => {
+        const otherMatches = prev.filter(m => !statusFilter.includes(m.status));
+        const combined = [...otherMatches, ...matchData];
+        const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
+        return unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'matches');
+    }
   };
 
-  // Leaderboard is loaded via real-time listener when tab is active
+  // Fetch user predictions on demand (called on login + manual refresh)
+  const fetchUserPredictions = async () => {
+    if (!user) return;
+    try {
+      const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', user.uid)));
+      setPredictions(snap.docs.map(d => d.data() as Prediction));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'predictions');
+    }
+  };
+
+  // Fetch leaderboard on demand
+  const fetchLeaderboard = async () => {
+    if (!user) return;
+    try {
+      const snap = await getDocs(query(collection(db, 'users'), orderBy('totalPoints', 'desc'), limit(50)));
+      setUsers(snap.docs.map(d => d.data() as UserProfile));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, 'users');
+    }
+  };
+
+  // Refresh everything - called when user hits refresh button
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([fetchMatches(), fetchUserPredictions()]);
+    if (activeTab === 'leaderboard') await fetchLeaderboard();
+    setIsRefreshing(false);
+  };
 
   // 1. Auth Listener
   useEffect(() => {
@@ -262,51 +313,25 @@ function PredictorApp() {
     return () => unsubAuth();
   }, []);
 
-  // 2. Real-time Match Listener
+  // 2. Fetch matches + predictions on login and when filter changes
   useEffect(() => {
     if (!user) return;
-
-    const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
-    const q = query(
-      collection(db, 'matches'),
-      where('status', 'in', statusFilter),
-      orderBy('date', matchFilter === 'completed' ? 'desc' : 'asc'),
-      limit(matchFilter === 'completed' ? 40 : 30)
-    );
-
-    const unsubMatches = onSnapshot(q, (snap) => {
-      const matchData = snap.docs.map(doc => ({
-        ...doc.data(),
-        homeVotes: doc.data().homeVotes || 0,
-        awayVotes: doc.data().awayVotes || 0
-      } as Match));
-      
-      setMatches(prev => {
-        const otherMatches = prev.filter(m => !statusFilter.includes(m.status));
-        const combined = [...otherMatches, ...matchData];
-        // Deduplicate by ID
-        const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
-        return unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      });
-      
+    const load = async () => {
+      await fetchMatches();
       if (loading) setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'matches');
-      if (loading) setLoading(false);
-    });
-
-    return () => unsubMatches();
+    };
+    load();
   }, [user, matchFilter]);
 
-  // 3. User Profile & Predictions (real-time listeners)
+  // 3. User Profile (real-time for points updates) & Predictions (one-time fetch on login)
   useEffect(() => {
     if (!user) return;
 
+    // Profile uses onSnapshot since it's a single doc and needs live point updates
     const unsubProfile = onSnapshot(doc(db, 'users', user.uid), (snap) => {
       if (snap.exists()) {
         setProfile(snap.data() as UserProfile);
       } else {
-        // Create profile if it doesn't exist
         const newProfile: UserProfile = {
           uid: user.uid,
           displayName: user.displayName || 'Anonymous User',
@@ -323,35 +348,20 @@ function PredictorApp() {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
 
-    // Real-time predictions listener - loads votes on login and keeps them live
-    const predsQuery = query(collection(db, 'predictions'), where('userId', '==', user.uid));
-    const unsubPredictions = onSnapshot(predsQuery, (snap) => {
-      setPredictions(snap.docs.map(d => d.data() as Prediction));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'predictions');
-    });
+    // Fetch predictions once on login
+    fetchUserPredictions();
 
-    return () => {
-      unsubProfile();
-      unsubPredictions();
-    };
+    return () => unsubProfile();
   }, [user]);
 
-  // Lazy load leaderboard with real-time listener (only when tab is active)
+  // Lazy load leaderboard (one-time fetch when tab is first opened)
   useEffect(() => {
-    if (!user || activeTab !== 'leaderboard') return;
+    if (activeTab === 'leaderboard' && users.length === 0) {
+      fetchLeaderboard();
+    }
+  }, [activeTab]);
 
-    const q = query(collection(db, 'users'), orderBy('totalPoints', 'desc'), limit(50));
-    const unsubLeaderboard = onSnapshot(q, (snap) => {
-      setUsers(snap.docs.map(d => d.data() as UserProfile));
-    }, (error) => {
-      handleFirestoreError(error, OperationType.LIST, 'users');
-    });
-
-    return () => unsubLeaderboard();
-  }, [user, activeTab]);
-
-  // Completed matches are loaded via the onSnapshot listener in effect #2 which re-runs on matchFilter change
+  // Completed matches are loaded via effect #2 which re-runs when matchFilter changes
 
   // Fetch predictions for selected user (Admin only)
   useEffect(() => {
@@ -432,7 +442,7 @@ function PredictorApp() {
           }, { merge: true });
         });
         await batch.commit();
-        // No need to fetchMatches - onSnapshot listener handles real-time updates
+        await fetchMatches();
       }
     } catch (error) {
       console.error("Error syncing schedule", error);
@@ -540,11 +550,12 @@ function PredictorApp() {
       
       setPendingPredictions({});
       if (selectedUserForAdmin) {
-        // Refresh admin predictions (no real-time listener for admin-managed user)
         const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
         setAdminPredictions(snap.docs.map(d => d.data() as Prediction));
+      } else {
+        await fetchUserPredictions();
       }
-      // No need to fetchMatches or fetchUserPredictions - onSnapshot listeners handle real-time updates
+      await fetchMatches();
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'batch-predictions');
@@ -572,7 +583,7 @@ function PredictorApp() {
     try {
       await updateDoc(doc(db, 'matches', matchId), updates);
       setEditingMatch(null);
-      // No need to fetchMatches - onSnapshot listener handles real-time updates
+      await fetchMatches();
       showToast("Match updated successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `matches/${matchId}`);
@@ -616,8 +627,8 @@ function PredictorApp() {
       });
       
       await batch.commit();
+      await fetchMatches();
       showToast("Vote counts recalculated successfully!");
-      // No need to fetchMatches - onSnapshot listener handles real-time updates
     } catch (error) {
       console.error("Error recalculating votes", error);
       showToast("Failed to recalculate votes.", "error");
