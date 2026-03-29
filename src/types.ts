@@ -10,6 +10,8 @@ export interface Match {
   venue: string;
   status: MatchStatus;
   winner?: string;
+  tossWinner?: string;
+  battingFirst?: string;
   homeScore?: string;
   awayScore?: string;
   type: MatchType;
@@ -37,6 +39,8 @@ export interface Prediction {
   userId: string;
   matchId: string;
   predictedWinner: string;
+  tossWinner?: string;       // which team wins toss
+  battingChoice?: 'BAT' | 'BOWL'; // toss winner elects to bat or bowl
   timestamp: string;
 }
 
