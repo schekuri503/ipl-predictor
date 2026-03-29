@@ -11,6 +11,7 @@ interface DailyUsage {
   reads: number;
   writes: number;
   deletes: number;
+  geminiCalls: number;
 }
 
 function getToday(): string {
@@ -22,10 +23,18 @@ function getUsage(): DailyUsage {
     const stored = localStorage.getItem(STORAGE_KEY);
     if (stored) {
       const data = JSON.parse(stored) as DailyUsage;
-      if (data.date === getToday()) return data;
+      if (data.date === getToday()) {
+        return {
+          date: data.date,
+          reads: data.reads || 0,
+          writes: data.writes || 0,
+          deletes: data.deletes || 0,
+          geminiCalls: data.geminiCalls || 0
+        };
+      }
     }
   } catch { /* ignore corrupt data */ }
-  return { date: getToday(), reads: 0, writes: 0, deletes: 0 };
+  return { date: getToday(), reads: 0, writes: 0, deletes: 0, geminiCalls: 0 };
 }
 
 function save(data: DailyUsage) {
@@ -50,25 +59,35 @@ export function trackDeletes(count: number = 1) {
   save(u);
 }
 
+export function trackGeminiCall(count: number = 1) {
+  const u = getUsage();
+  u.geminiCalls += count;
+  save(u);
+}
+
 export interface FirebaseUsageStats {
   date: string;
   reads: number;
   writes: number;
   deletes: number;
+  geminiCalls: number;
   limits: {
     reads: number;
     writes: number;
     deletes: number;
+    geminiCalls: number;
   };
 }
 
 export function getUsageStats(): FirebaseUsageStats {
+  const usage = getUsage();
   return {
-    ...getUsage(),
+    ...usage,
     limits: {
       reads: 50000,   // Firestore free tier: 50K reads/day
       writes: 20000,  // Firestore free tier: 20K writes/day
-      deletes: 20000  // Firestore free tier: 20K deletes/day
+      deletes: 20000, // Firestore free tier: 20K deletes/day
+      geminiCalls: 1500 // Gemini Flash free tier: 1.5K requests/day (approx)
     }
   };
 }

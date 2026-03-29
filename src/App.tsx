@@ -18,6 +18,7 @@ import {
   orderBy, 
   updateDoc,
   getDocs,
+  getDoc,
   where,
   writeBatch,
   runTransaction,
@@ -59,7 +60,10 @@ import { auth, db, signInWithGoogle, logout } from './firebase';
 import { Match, UserProfile, Prediction, MatchStatus, MatchType } from './types';
 import { TEAMS, INITIAL_MATCHES, TOTAL_SKIPS_ALLOWED, APP_LOGO } from './constants';
 import { fetchUpdatedSchedule, fetchOfficialResult, fetchLiveMatchData } from './services/geminiService';
-import { trackReads, trackWrites, trackDeletes, getUsageStats, type FirebaseUsageStats } from './firebaseTracker';
+import { trackReads, trackWrites, trackDeletes, trackGeminiCall, getUsageStats, type FirebaseUsageStats } from './firebaseTracker';
+
+// --- Feature Flags ---
+const ENABLE_TOSS_PREDICTIONS = false;
 
 // --- Error Handling ---
 
@@ -241,6 +245,7 @@ function PredictorApp() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [liveVoteCounts, setLiveVoteCounts] = useState<Record<string, Record<string, number>>>({});
+  const [pendingToss, setPendingToss] = useState<Record<string, { tossWinner?: string; battingChoice?: 'BAT' | 'BOWL' }>>({});
   const [firebaseUsage, setFirebaseUsage] = useState<FirebaseUsageStats>(getUsageStats());
   const [autoUpdating, setAutoUpdating] = useState(false);
   const lastFetchRef = useRef<Record<string, number>>({});
@@ -288,6 +293,7 @@ function PredictorApp() {
       const snap = await getDocs(q);
       trackReads(snap.docs.length || 1);
       const matchData = snap.docs.map(d => ({
+        id: d.id,
         ...d.data(),
         homeVotes: d.data().homeVotes || 0,
         awayVotes: d.data().awayVotes || 0
@@ -433,14 +439,14 @@ function PredictorApp() {
     return () => unsubProfile();
   }, [user]);
 
+  // Completed matches are loaded via effect #2 which re-runs when matchFilter changes
+  
   // Lazy load leaderboard (one-time fetch when tab is first opened)
   useEffect(() => {
     if (activeTab === 'leaderboard' && users.length === 0) {
       fetchLeaderboard();
     }
   }, [activeTab]);
-
-  // Completed matches are loaded via effect #2 which re-runs when matchFilter changes
 
   // Fetch predictions for selected user (Admin only)
   useEffect(() => {
@@ -550,9 +556,9 @@ function PredictorApp() {
     const match = matches.find(m => m.id === matchId);
     if (!match) return;
 
-    // Check if match has started (Admins can bypass)
+    // Check if match has started (Admins can bypass if showAdmin is enabled)
     const isLocked = isAfter(new Date(), parseISO(match.date)) || match.status !== 'UPCOMING';
-    if (isLocked && !isAdminUser) {
+    if (isLocked && !(isAdminUser && showAdmin)) {
       alert("Match has already started or completed. Predictions are locked.");
       return;
     }
@@ -582,8 +588,13 @@ function PredictorApp() {
 
   const handleUndo = (matchId: string) => {
     if (!user) return;
-    
+
     setPendingPredictions(prev => {
+      const next = { ...prev };
+      delete next[matchId];
+      return next;
+    });
+    setPendingToss(prev => {
       const next = { ...prev };
       delete next[matchId];
       return next;
@@ -592,34 +603,88 @@ function PredictorApp() {
 
   const handleClearSelection = (matchId: string) => {
     if (!user) return;
-    
+
     setPendingPredictions(prev => ({
       ...prev,
       [matchId]: '' // Empty string means "clear prediction"
     }));
+    // Also clear toss predictions
+    setPendingToss(prev => {
+      const next = { ...prev };
+      delete next[matchId];
+      return next;
+    });
+  };
+
+  const handleTossPrediction = (matchId: string, field: 'tossWinner' | 'battingChoice', value: string) => {
+    if (!user) return;
+    const match = matches.find(m => m.id === matchId);
+    if (!match) return;
+
+    const isLocked = isAfter(new Date(), parseISO(match.date)) || match.status !== 'UPCOMING';
+    if (isLocked && !(isAdminUser && showAdmin)) return;
+
+    setPendingToss(prev => {
+      const existing = prev[matchId] || {};
+      const currentVal = existing[field];
+
+      // Toggle off if same value clicked
+      if (currentVal === value) {
+        const next = { ...prev, [matchId]: { ...existing } };
+        delete next[matchId][field];
+        if (Object.keys(next[matchId]).length === 0) delete next[matchId];
+        return next;
+      }
+
+      return {
+        ...prev,
+        [matchId]: { ...existing, [field]: value }
+      };
+    });
   };
 
   const saveAllPredictions = async () => {
-    if (!user || Object.keys(pendingPredictions).length === 0) return;
-    
+    const hasPendingWinner = Object.keys(pendingPredictions).length > 0;
+    const hasPendingToss = Object.keys(pendingToss).length > 0;
+    if (!user || (!hasPendingWinner && !hasPendingToss)) return;
+
     const targetUserId = selectedUserForAdmin?.uid || user.uid;
     setSavingPredictions(true);
     try {
+      // Collect all match IDs that need saving (winner or toss)
+      const allMatchIds = new Set([
+        ...Object.keys(pendingPredictions),
+        ...Object.keys(pendingToss)
+      ]);
+
       await runTransaction(db, async (transaction) => {
-        for (const [matchId, team] of Object.entries(pendingPredictions)) {
+        for (const matchId of allMatchIds) {
           const predictionId = `${targetUserId}_${matchId}`;
           const predictionRef = doc(db, 'predictions', predictionId);
+          const team = pendingPredictions[matchId];
+          const toss = pendingToss[matchId];
 
           if (team === '') {
             transaction.delete(predictionRef);
           } else {
-            transaction.set(predictionRef, {
+            const predData: Record<string, any> = {
               id: predictionId,
               userId: targetUserId,
               matchId,
-              predictedWinner: team,
               timestamp: new Date().toISOString()
-            });
+            };
+            // Include winner prediction if set
+            if (team !== undefined) {
+              predData.predictedWinner = team;
+            }
+            // Include toss predictions if set
+            if (toss?.tossWinner) {
+              predData.tossWinner = toss.tossWinner;
+            }
+            if (toss?.battingChoice) {
+              predData.battingChoice = toss.battingChoice;
+            }
+            transaction.set(predictionRef, predData, { merge: true });
           }
         }
       });
@@ -631,6 +696,7 @@ function PredictorApp() {
       if (deleteCount > 0) trackDeletes(deleteCount);
 
       setPendingPredictions({});
+      setPendingToss({});
       if (selectedUserForAdmin) {
         const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
         trackReads(snap.docs.length || 1);
@@ -732,89 +798,330 @@ function PredictorApp() {
     }
   };
 
-  // Admin: Complete Match & Calculate Points
-  const handleCompleteMatch = async (match: Match, winner: string) => {
-    if (!isAdminUser) return;
-    const batch = writeBatch(db);
+  const [recalculatingPoints, setRecalculatingPoints] = useState(false);
+  const handleRecalculateAllPoints = async () => {
+    if (!isAdminUser || recalculatingPoints) return;
+    if (!window.confirm("CRITICAL: This will reset all user points to 0 and recalculate them based on ALL completed matches. Continue?")) return;
     
+    setRecalculatingPoints(true);
     try {
-      const batch = writeBatch(db);
-
-      // 1. Update Match
-      batch.update(doc(db, 'matches', match.id), {
-        status: 'COMPLETED',
-        winner,
-        homeScore: match.homeScore || null,
-        awayScore: match.awayScore || null
+      showToast("Recalculating all points... this may take a moment.");
+      
+      // 1. Fetch all matches, predictions, and users
+      const [matchesSnap, predsSnap, usersSnap] = await Promise.all([
+        getDocs(collection(db, 'matches')),
+        getDocs(collection(db, 'predictions')),
+        getDocs(collection(db, 'users'))
+      ]);
+      
+      trackReads(matchesSnap.docs.length + predsSnap.docs.length + usersSnap.docs.length);
+      
+      const allMatches = matchesSnap.docs.map(d => ({ id: d.id, ...d.data() } as Match));
+      const allPredictions = predsSnap.docs.map(d => d.data() as Prediction);
+      const allUsers = usersSnap.docs.map(d => d.data() as UserProfile);
+      
+      const completedMatches = allMatches.filter(m => m.status === 'COMPLETED' && m.winner);
+      
+      // 2. Initialize new points structure
+      const userStats: Record<string, { points: number, skips: number }> = {};
+      allUsers.forEach(u => {
+        userStats[u.uid] = { points: 0, skips: 0 };
       });
+      
+      // 3. Process each completed match
+      for (const match of completedMatches) {
+        const winner = match.winner!;
+        const matchPredictions = allPredictions.filter(p => p.matchId === match.id);
+        
+        // Resolve predictions
+        const resolvedPredictions = matchPredictions.map(p => ({
+          ...p,
+          resolvedWinner: resolvePredictedTeam(p, match)
+        }));
+        
+        const winners = resolvedPredictions.filter(p => p.resolvedWinner === winner);
+        const losers = resolvedPredictions.filter(p => p.resolvedWinner !== winner);
+        
+        // Point Multiplier
+        let multiplier = 1;
+        if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
+        if (match.type === 'FINAL') multiplier = 4;
+        
+        const totalLosers = losers.length;
+        const totalWinners = winners.length;
+        const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
+        const loserPoints = -1;
+        
+        // Update stats for all users for THIS match
+        allUsers.forEach(u => {
+          const userPred = resolvedPredictions.find(p => p.userId === u.uid);
+          let pointChange = 0;
+          let skipChange = 0;
+          
+          if (userPred) {
+            pointChange = userPred.resolvedWinner === winner ? winnerPoints : loserPoints;
+          } else {
+            // Did not predict
+            if (match.type === 'FINAL') {
+              pointChange = -1;
+            } else if (userStats[u.uid].skips < TOTAL_SKIPS_ALLOWED) {
+              skipChange = 1;
+              pointChange = 0;
+            } else {
+              pointChange = -1;
+            }
+          }
+          
+          userStats[u.uid].points += (pointChange * multiplier);
+          userStats[u.uid].skips += skipChange;
+        });
+      }
+      
+      // 4. Batch update all users in chunks of 500
+      const userChunks: UserProfile[][] = [];
+      for (let i = 0; i < allUsers.length; i += 500) {
+        userChunks.push(allUsers.slice(i, i + 500));
+      }
+      
+      for (const chunk of userChunks) {
+        const batch = writeBatch(db);
+        chunk.forEach(u => {
+          batch.update(doc(db, 'users', u.uid), {
+            totalPoints: userStats[u.uid].points,
+            skipsUsed: userStats[u.uid].skips
+          });
+        });
+        await batch.commit();
+      }
+      
+      trackWrites(allUsers.length);
+      refreshUsageStats();
+      if (activeTab === 'leaderboard') await fetchLeaderboard();
+      await fetchMatches(true);
+      showToast("All points recalculated successfully!");
+    } catch (error) {
+      console.error("Error recalculating points:", error);
+      showToast("Failed to recalculate points", "error");
+    } finally {
+      setRecalculatingPoints(false);
+    }
+  };
+
+  // Admin: Complete Match & Calculate Points
+  const [completingMatch, setCompletingMatch] = useState(false);
+  const resolvePredictedTeam = (prediction: Prediction, match: Match) => {
+    if (prediction.predictedWinner === 'TOSS_WINNER') return match.tossWinner;
+    if (prediction.predictedWinner === 'BATTING_FIRST') return match.battingFirst;
+    if (prediction.predictedWinner === 'BATTING_SECOND') {
+      if (!match.battingFirst) return undefined;
+      return match.battingFirst === match.homeTeam ? match.awayTeam : match.homeTeam;
+    }
+    return prediction.predictedWinner;
+  };
+
+  const handleCompleteMatch = async (match: Match, winner: string) => {
+    if (!isAdminUser || completingMatch) return;
+    setCompletingMatch(true);
+    try {
+      // Fetch the latest match data from Firestore
+      const matchDoc = await getDoc(doc(db, 'matches', match.id));
+      trackReads(1);
+      
+      let currentMatchData = match;
+      let isAlreadyCompleted = false;
+      if (matchDoc.exists()) {
+        currentMatchData = { id: matchDoc.id, ...matchDoc.data() } as Match;
+        if (currentMatchData.status === 'COMPLETED') {
+          isAlreadyCompleted = true;
+        }
+      }
+
+      // If already completed and winner is the same, update other details
+      if (isAlreadyCompleted && currentMatchData.winner === winner) {
+        await updateDoc(doc(db, 'matches', match.id), {
+          homeScore: match.homeScore || null,
+          awayScore: match.awayScore || null,
+          tossWinner: match.tossWinner || null,
+          battingFirst: match.battingFirst || null,
+          date: match.date,
+          dateIST: match.dateIST,
+          odds: match.odds
+        });
+        trackWrites(1);
+        await fetchMatches(true);
+        showToast(`Match details updated.`);
+        setCompletingMatch(false);
+        return;
+      }
+
+      // If already completed but winner is DIFFERENT, we update the winner and then RECALCULATE ALL POINTS
+      if (isAlreadyCompleted) {
+        if (!window.confirm(`This match was already completed with ${currentMatchData.winner} as winner. Changing winner to ${winner} will trigger a full points recalculation for ALL users. Continue?`)) {
+          setCompletingMatch(false);
+          return;
+        }
+        
+        await updateDoc(doc(db, 'matches', match.id), { 
+          winner,
+          homeScore: match.homeScore || null,
+          awayScore: match.awayScore || null,
+          tossWinner: match.tossWinner || null,
+          battingFirst: match.battingFirst || null,
+          date: match.date,
+          dateIST: match.dateIST,
+          odds: match.odds
+        });
+        trackWrites(1);
+        await handleRecalculateAllPoints();
+        await fetchMatches(true);
+        setCompletingMatch(false);
+        return;
+      }
 
       // 2. Get all predictions for this match
       const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
       trackReads(predsSnap.docs.length || 1);
       const matchPredictions = predsSnap.docs.map(d => d.data() as Prediction);
-      
-      const winners = matchPredictions.filter(p => p.predictedWinner === winner);
-      const losers = matchPredictions.filter(p => p.predictedWinner !== winner);
-      
+
+      // Resolve predictions (handle TOSS_WINNER, BATTING_FIRST, etc.)
+      const resolvedPredictions = matchPredictions.map(p => ({
+        ...p,
+        resolvedWinner: resolvePredictedTeam(p, currentMatchData)
+      }));
+
+      const winners = resolvedPredictions.filter(p => p.resolvedWinner === winner);
+      const losers = resolvedPredictions.filter(p => p.resolvedWinner !== winner);
+
       // Point Multiplier
       let multiplier = 1;
       if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
       if (match.type === 'FINAL') multiplier = 4;
 
-      // Calculate points
-      // if anyone losses they will get -1, if anyone wins total lossers/ total winners
+      // Calculate points: winners get (losers/winners), losers get -1
       const totalLosers = losers.length;
       const totalWinners = winners.length;
-      
+
       const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
       const loserPoints = -1;
 
-      // Update User Points
+      // Update User Points & handle skips
       const allUsersSnap = await getDocs(collection(db, 'users'));
       trackReads(allUsersSnap.docs.length || 1);
       const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
-      
-      for (const u of allUserProfiles) {
-        const userPred = matchPredictions.find(p => p.userId === u.uid);
-        let pointChange = 0;
-        let skipChange = 0;
 
-        if (userPred) {
-          pointChange = userPred.predictedWinner === winner ? winnerPoints : loserPoints;
-        } else {
-          // Did not predict
-          if (match.type === 'FINAL') {
-            pointChange = -1; // Cannot skip finals
-          } else if (u.skipsUsed < TOTAL_SKIPS_ALLOWED) {
-            skipChange = 1;
-            pointChange = 0;
-          } else {
-            pointChange = -1; // No skips left
-          }
-        }
-
-        batch.update(doc(db, 'users', u.uid), {
-          totalPoints: (u.totalPoints || 0) + (pointChange * multiplier),
-          skipsUsed: (u.skipsUsed || 0) + skipChange
-        });
+      // Update User Points & handle skips in chunks of 500
+      const userChunks: UserProfile[][] = [];
+      for (let i = 0; i < allUserProfiles.length; i += 500) {
+        userChunks.push(allUserProfiles.slice(i, i + 500));
       }
 
-      await batch.commit();
+      for (const chunk of userChunks) {
+        const batch = writeBatch(db);
+        
+        // If it's the first chunk, also update the match status
+        if (userChunks.indexOf(chunk) === 0) {
+          batch.update(doc(db, 'matches', match.id), {
+            status: 'COMPLETED',
+            winner,
+            homeScore: match.homeScore || null,
+            awayScore: match.awayScore || null,
+            tossWinner: match.tossWinner || null,
+            battingFirst: match.battingFirst || null
+          });
+        }
+
+        for (const u of chunk) {
+          const userPred = resolvedPredictions.find(p => p.userId === u.uid);
+          let pointChange = 0;
+          let skipChange = 0;
+
+          if (userPred) {
+            pointChange = userPred.resolvedWinner === winner ? winnerPoints : loserPoints;
+          } else {
+            // Did not predict
+            if (match.type === 'FINAL') {
+              pointChange = -1; // Cannot skip finals
+            } else if (u.skipsUsed < TOTAL_SKIPS_ALLOWED) {
+              skipChange = 1;
+              pointChange = 0;
+            } else {
+              pointChange = -1; // No skips left
+            }
+          }
+
+          batch.update(doc(db, 'users', u.uid), {
+            totalPoints: (u.totalPoints || 0) + (pointChange * multiplier),
+            skipsUsed: (u.skipsUsed || 0) + skipChange
+          });
+        }
+        await batch.commit();
+      }
+
       trackWrites(1 + allUserProfiles.length);
-      
-      await fetchMatches(true);
-      await fetchVoteCounts(matches);
       refreshUsageStats();
-      showToast("Match completed and points awarded!");
+      await fetchMatches(true);
+      showToast(`Match completed! ${winner} wins. ${totalWinners} correct, ${totalLosers} wrong.`);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `matches/${match.id}`);
+      handleFirestoreError(error, OperationType.WRITE, `complete-match/${match.id}`);
+      showToast("Failed to complete match", "error");
+    } finally {
+      setCompletingMatch(false);
+    }
+  };
+
+  const handleResetUserPoints = async (userId: string) => {
+    if (!isAdminUser) return;
+    if (!window.confirm("Are you sure you want to reset points for this user? This will set totalPoints to 0 and skipsUsed to 0.")) return;
+    
+    try {
+      await updateDoc(doc(db, 'users', userId), {
+        totalPoints: 0,
+        skipsUsed: 0
+      });
+      trackWrites(1);
+      showToast("User points reset successfully");
+      // Refresh user list
+      const usersSnap = await getDocs(query(collection(db, 'users'), orderBy('totalPoints', 'desc')));
+      trackReads(usersSnap.docs.length);
+      setUsers(usersSnap.docs.map(d => d.data() as UserProfile));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `reset-points/${userId}`);
+      showToast("Failed to reset points", "error");
     }
   };
 
   // Admin: Auto-update match statuses (UPCOMING→LIVE, LIVE→COMPLETED with results from web)
-  const handleAutoUpdateMatches = async () => {
+  const handleFetchLiveScore = async (match: Match) => {
     if (!isAdminUser) return;
-    setAutoUpdating(true);
+    try {
+      showToast(`Fetching live score for ${match.homeTeam} vs ${match.awayTeam}...`);
+      const liveData = await fetchLiveMatchData(match);
+      if (liveData) {
+        const updates: Partial<Match> = {};
+        if (liveData.homeScore) updates.homeScore = liveData.homeScore;
+        if (liveData.awayScore) updates.awayScore = liveData.awayScore;
+        if (liveData.summary) updates.summary = liveData.summary;
+        if (liveData.status) updates.status = liveData.status;
+        
+        if (Object.keys(updates).length > 0) {
+          await handleUpdateMatch(match.id, updates);
+          showToast("Live score updated successfully");
+          await fetchMatches(true);
+        } else {
+          showToast("No live updates found for this match");
+        }
+      } else {
+        showToast("Could not fetch live data", "error");
+      }
+    } catch (error) {
+      console.error("Error fetching live score:", error);
+      showToast("Failed to fetch live score", "error");
+    }
+  };
+
+  const handleAutoUpdateMatches = async (silent = false) => {
+    if (!isAdminUser) return;
+    if (!silent) setAutoUpdating(true);
     try {
       const now = new Date();
       const statusBatch = writeBatch(db);
@@ -847,9 +1154,32 @@ function PredictorApp() {
 
       // Try to fetch results and complete eligible matches
       let completedCount = 0;
+      let liveUpdates = 0;
+      
+      // Also fetch live scores for matches that are currently LIVE
+      const liveMatches = matches.filter(m => m.status === 'LIVE' && !matchesToComplete.find(mtc => mtc.id === m.id));
+      
+      for (const match of liveMatches) {
+        try {
+          if (!silent) showToast(`Fetching live score for ${match.homeTeam} vs ${match.awayTeam}...`);
+          const liveData = await fetchLiveMatchData(match);
+          if (liveData && (liveData.homeScore || liveData.awayScore || liveData.summary)) {
+            await handleUpdateMatch(match.id, {
+              homeScore: liveData.homeScore || match.homeScore,
+              awayScore: liveData.awayScore || match.awayScore,
+              summary: liveData.summary || match.summary,
+              status: liveData.status || match.status
+            });
+            liveUpdates++;
+          }
+        } catch (e) {
+          console.error(`Failed to fetch live score for ${match.id}:`, e);
+        }
+      }
+
       for (const match of matchesToComplete) {
         try {
-          showToast(`Fetching result for ${match.homeTeam} vs ${match.awayTeam}...`);
+          if (!silent) showToast(`Fetching result for ${match.homeTeam} vs ${match.awayTeam}...`);
           const result = await fetchOfficialResult(match);
           if (result?.winner && result.status === 'COMPLETED' &&
               result.winner !== 'DRAW' && result.winner !== 'ABANDONED') {
@@ -874,12 +1204,12 @@ function PredictorApp() {
 
       await fetchMatches(true);
       refreshUsageStats();
-      showToast(`Auto-update: ${statusUpdates} → LIVE, ${completedCount} completed`);
+      if (!silent) showToast(`Auto-update: ${statusUpdates} → LIVE, ${liveUpdates} live scores, ${completedCount} completed`);
     } catch (error) {
       console.error("Error auto-updating matches:", error);
-      showToast("Failed to auto-update matches", "error");
+      if (!silent) showToast("Failed to auto-update matches", "error");
     } finally {
-      setAutoUpdating(false);
+      if (!silent) setAutoUpdating(false);
     }
   };
 
@@ -898,6 +1228,28 @@ function PredictorApp() {
       showToast("Failed to reset skips", "error");
     }
   };
+
+  // 4. Automatic Background Updates for Live Matches (Admin Only)
+  useEffect(() => {
+    if (!isAdminUser) return;
+
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      const hasLiveMatches = matches.some(m => {
+        if (m.status !== 'LIVE') return false;
+        const matchDate = parseISO(m.date);
+        const hoursElapsed = (now.getTime() - matchDate.getTime()) / (1000 * 60 * 60);
+        return hoursElapsed < 4; // Only update if within 4 hours of start
+      });
+
+      if (hasLiveMatches) {
+        console.log("Auto-refreshing live scores...");
+        handleAutoUpdateMatches(true);
+      }
+    }, 30 * 60 * 1000); // Every 30 minutes
+
+    return () => clearInterval(intervalId);
+  }, [isAdminUser, matches]);
 
   const handleSignIn = async () => {
     setIsSigningIn(true);
@@ -1106,7 +1458,15 @@ function PredictorApp() {
                   Recalculate Votes
                 </button>
                 <button
-                  onClick={handleAutoUpdateMatches}
+                  onClick={handleRecalculateAllPoints}
+                  disabled={recalculatingPoints}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                >
+                  <Trophy className={cn("w-3 h-3", recalculatingPoints && "animate-spin")} />
+                  {recalculatingPoints ? 'Recalculating...' : 'Recalculate All Points'}
+                </button>
+                <button
+                  onClick={() => handleAutoUpdateMatches(false)}
                   disabled={autoUpdating}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 text-xs font-bold hover:bg-green-500/20 transition-colors disabled:opacity-50"
                 >
@@ -1132,13 +1492,13 @@ function PredictorApp() {
                     Firebase Usage Today ({firebaseUsage.date})
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   {/* Reads */}
                   <div className="space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-bold uppercase text-blue-400">Reads</span>
                       <span className="text-[9px] font-mono text-gray-500">
-                        {firebaseUsage.reads.toLocaleString()} / {firebaseUsage.limits.reads.toLocaleString()}
+                        {(firebaseUsage.reads || 0).toLocaleString()} / {(firebaseUsage.limits.reads || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -1156,7 +1516,7 @@ function PredictorApp() {
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-bold uppercase text-green-400">Writes</span>
                       <span className="text-[9px] font-mono text-gray-500">
-                        {firebaseUsage.writes.toLocaleString()} / {firebaseUsage.limits.writes.toLocaleString()}
+                        {(firebaseUsage.writes || 0).toLocaleString()} / {(firebaseUsage.limits.writes || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -1174,7 +1534,7 @@ function PredictorApp() {
                     <div className="flex items-center justify-between">
                       <span className="text-[9px] font-bold uppercase text-red-400">Deletes</span>
                       <span className="text-[9px] font-mono text-gray-500">
-                        {firebaseUsage.deletes.toLocaleString()} / {firebaseUsage.limits.deletes.toLocaleString()}
+                        {(firebaseUsage.deletes || 0).toLocaleString()} / {(firebaseUsage.limits.deletes || 0).toLocaleString()}
                       </span>
                     </div>
                     <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
@@ -1187,14 +1547,42 @@ function PredictorApp() {
                       {((firebaseUsage.deletes / firebaseUsage.limits.deletes) * 100).toFixed(1)}% used
                     </span>
                   </div>
+                  {/* Gemini API */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold uppercase text-purple-400">Gemini</span>
+                      <div className="flex items-center gap-2">
+                        <a 
+                          href="https://aistudio.google.com/app/plan_usage" 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-[8px] text-purple-400 hover:underline flex items-center gap-0.5"
+                        >
+                          Official Usage <ExternalLink className="w-2 h-2" />
+                        </a>
+                        <span className="text-[9px] font-mono text-gray-500">
+                          {(firebaseUsage.geminiCalls || 0).toLocaleString()} / {(firebaseUsage.limits.geminiCalls || 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-purple-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((firebaseUsage.geminiCalls / firebaseUsage.limits.geminiCalls) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[8px] text-gray-600">
+                      {((firebaseUsage.geminiCalls / firebaseUsage.limits.geminiCalls) * 100).toFixed(1)}% used
+                    </span>
+                  </div>
                 </div>
                 <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
                   <span className="text-[8px] text-gray-600 uppercase">
-                    Free Tier: 50K reads, 20K writes, 20K deletes / day
+                    Limits: 50K reads, 20K writes, 1.5K Gemini / day
                   </span>
                   <span className="text-[8px] text-gray-600">
-                    {firebaseUsage.limits.reads - firebaseUsage.reads > 0
-                      ? `${(firebaseUsage.limits.reads - firebaseUsage.reads).toLocaleString()} reads remaining`
+                    {((firebaseUsage.limits.reads || 0) - (firebaseUsage.reads || 0)) > 0
+                      ? `${((firebaseUsage.limits.reads || 0) - (firebaseUsage.reads || 0)).toLocaleString()} reads remaining`
                       : 'Reads limit reached!'}
                   </span>
                 </div>
@@ -1293,15 +1681,20 @@ function PredictorApp() {
     : currentPredictions.find(p => p.matchId === match.id);
   
                 const effectiveStatus = getEffectiveStatus(match);
-                const isPending = pendingPredictions[match.id] !== undefined;
+                const isPending = pendingPredictions[match.id] !== undefined || pendingToss[match.id] !== undefined;
                 const isLocked = isAfter(new Date(), parseISO(match.date)) || effectiveStatus !== 'UPCOMING';
+
+                // Toss prediction state
+                const savedFullPred = currentPredictions.find(p => p.matchId === match.id);
+                const tossPending = pendingToss[match.id];
+                const currentTossWinner = tossPending?.tossWinner ?? savedFullPred?.tossWinner ?? '';
+                const currentBattingChoice = tossPending?.battingChoice ?? savedFullPred?.battingChoice ?? '';
                 const hasPredicted = !!prediction;
                 
                 // Use live vote counts computed from predictions (source of truth)
-                const voteCounts = {
-                  [match.homeTeam]: liveVoteCounts[match.id]?.[match.homeTeam] || 0,
-                  [match.awayTeam]: liveVoteCounts[match.id]?.[match.awayTeam] || 0
-                };
+                const voteCounts = { ... (liveVoteCounts[match.id] || {}) };
+                if (voteCounts[match.homeTeam] === undefined) voteCounts[match.homeTeam] = 0;
+                if (voteCounts[match.awayTeam] === undefined) voteCounts[match.awayTeam] = 0;
                 
                 const savedPrediction = currentPredictions.find(p => p.matchId === match.id);
                 const pendingPrediction = pendingPredictions[match.id];
@@ -1323,27 +1716,15 @@ function PredictorApp() {
                   }
                 }
                 
+                const totalVotes = Object.values(voteCounts).reduce((a, b) => a + (b as number), 0);
+
+                // Calculate live odds as (total - winners) / winners ratio
                 const homeWinners = voteCounts[match.homeTeam] || 0;
                 const awayWinners = voteCounts[match.awayTeam] || 0;
-                const drawWinners = voteCounts['DRAW'] || 0;
-                const totalVotes = homeWinners + awayWinners + drawWinners;
-
-                let displayOdds = {
-                  home: homeWinners > 0 ? parseFloat((awayWinners / homeWinners).toFixed(2)) : 0,
-                  away: awayWinners > 0 ? parseFloat((homeWinners / awayWinners).toFixed(2)) : 0
+                const liveOdds = {
+                  home: homeWinners > 0 ? parseFloat(((totalVotes - homeWinners) / homeWinners).toFixed(2)) : 0,
+                  away: awayWinners > 0 ? parseFloat(((totalVotes - awayWinners) / awayWinners).toFixed(2)) : 0
                 };
-
-                // If completed, show actual points awarded
-                if (match.status === 'COMPLETED' && match.winner) {
-                  const totalWinners = voteCounts[match.winner] || 0;
-                  const totalLosers = (homeWinners + awayWinners + drawWinners) - totalWinners;
-                  const winnerPoints = totalWinners > 0 ? parseFloat((totalLosers / totalWinners).toFixed(2)) : 0;
-                  
-                  displayOdds = {
-                    home: match.winner === match.homeTeam ? winnerPoints : -1,
-                    away: match.winner === match.awayTeam ? winnerPoints : -1
-                  };
-                }
                 
                 return (
                   <motion.div 
@@ -1410,8 +1791,8 @@ function PredictorApp() {
                             <span className="font-bold text-sm text-center">{TEAMS[match.homeTeam as keyof typeof TEAMS]?.name}</span>
                             {totalVotes > 0 ? (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{displayOdds.home}</span>
-                                <span className="text-[7px] text-gray-500 font-bold uppercase">{match.status === 'COMPLETED' ? 'pts' : 'odds'}</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{liveOdds.home}</span>
+                                <span className="text-[7px] text-gray-500 font-bold uppercase">odds</span>
                               </div>
                             ) : match.odds && match.odds.home !== undefined && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
@@ -1434,14 +1815,6 @@ function PredictorApp() {
                         
                         <div className="flex flex-col items-center gap-1">
                           <span className="text-2xl font-black text-white/10 italic">VS</span>
-                          {(voteCounts['DRAW'] || 0) > 0 && (
-                            <button
-                              onClick={() => setShowVoters({ matchId: match.id, teamCode: 'DRAW' })}
-                              className="text-[9px] font-black text-gray-500 hover:text-[#F27D26] transition-colors"
-                            >
-                              {voteCounts['DRAW']} DRAW
-                            </button>
-                          )}
                         </div>
 
                         {/* Away Team */}
@@ -1454,8 +1827,8 @@ function PredictorApp() {
                             <span className="font-bold text-sm text-center">{TEAMS[match.awayTeam as keyof typeof TEAMS]?.name}</span>
                             {totalVotes > 0 ? (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{displayOdds.away}</span>
-                                <span className="text-[7px] text-gray-500 font-bold uppercase">{match.status === 'COMPLETED' ? 'pts' : 'odds'}</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{liveOdds.away}</span>
+                                <span className="text-[7px] text-gray-500 font-bold uppercase">odds</span>
                               </div>
                             ) : match.odds && match.odds.away !== undefined && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
@@ -1491,45 +1864,150 @@ function PredictorApp() {
                             />
                           </div>
                           <div className="flex justify-between mt-1 text-[8px] font-mono text-gray-500 uppercase tracking-tighter">
-                            <span>{((voteCounts[match.homeTeam] / totalVotes) * 100).toFixed(0)}% {match.homeTeam}</span>
-                            <span>{((voteCounts[match.awayTeam] / totalVotes) * 100).toFixed(0)}% {match.awayTeam}</span>
+                            <span>{(( (voteCounts[match.homeTeam] || 0) / totalVotes) * 100).toFixed(0)}% {match.homeTeam}</span>
+                            <span>{(( (voteCounts[match.awayTeam] || 0) / totalVotes) * 100).toFixed(0)}% {match.awayTeam}</span>
                           </div>
                         </div>
                       )}
 
                       {/* Prediction Controls */}
                       <div className="space-y-4">
-                        {(!isLocked || isAdminUser) ? (
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="flex flex-col gap-1">
-                              <button 
+                        {(!isLocked || (isAdminUser && showAdmin)) ? (
+                          <>
+                          {/* Match Winner Prediction */}
+                          <div>
+                            <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2">Who Wins?</p>
+                            <div className="grid grid-cols-2 gap-3 mb-3">
+                              <button
                                 onClick={() => handlePredict(match.id, match.homeTeam)}
                                 className={cn(
                                   "py-3 rounded-xl font-bold transition-all border-2 relative",
-                                  prediction?.predictedWinner === match.homeTeam 
-                                    ? "bg-[#F27D26] border-[#F27D26] text-white shadow-lg shadow-orange-500/20" 
+                                  prediction?.predictedWinner === match.homeTeam
+                                    ? "bg-[#F27D26] border-[#F27D26] text-white shadow-lg shadow-orange-500/20"
                                     : "bg-white/5 border-transparent text-gray-400 hover:bg-white/10"
                                 )}
                               >
                                 {match.homeTeam}
                               </button>
-                            </div>
-                            <div className="flex flex-col gap-1">
-                              <button 
+                              <button
                                 onClick={() => handlePredict(match.id, match.awayTeam)}
                                 className={cn(
                                   "py-3 rounded-xl font-bold transition-all border-2 relative",
-                                  prediction?.predictedWinner === match.awayTeam 
-                                    ? "bg-[#F27D26] border-[#F27D26] text-white shadow-lg shadow-orange-500/20" 
+                                  prediction?.predictedWinner === match.awayTeam
+                                    ? "bg-[#F27D26] border-[#F27D26] text-white shadow-lg shadow-orange-500/20"
                                     : "bg-white/5 border-transparent text-gray-400 hover:bg-white/10"
                                 )}
                               >
                                 {match.awayTeam}
                               </button>
                             </div>
+                            
+                            {/* Dynamic Winner Options */}
+                            {ENABLE_TOSS_PREDICTIONS && (
+                              <div className="grid grid-cols-3 gap-2">
+                                <button
+                                  onClick={() => handlePredict(match.id, 'TOSS_WINNER')}
+                                  className={cn(
+                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                    prediction?.predictedWinner === 'TOSS_WINNER'
+                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
+                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                  )}
+                                >
+                                  Toss Winner
+                                </button>
+                                <button
+                                  onClick={() => handlePredict(match.id, 'BATTING_FIRST')}
+                                  className={cn(
+                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                    prediction?.predictedWinner === 'BATTING_FIRST'
+                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
+                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                  )}
+                                >
+                                  Batting 1st
+                                </button>
+                                <button
+                                  onClick={() => handlePredict(match.id, 'BATTING_SECOND')}
+                                  className={cn(
+                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                    prediction?.predictedWinner === 'BATTING_SECOND'
+                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
+                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                  )}
+                                >
+                                  Batting 2nd
+                                </button>
+                              </div>
+                            )}
                           </div>
+
+                          {/* Toss & Batting Choice Prediction */}
+                          {ENABLE_TOSS_PREDICTIONS && (
+                            <div className="pt-3 border-t border-white/5">
+                              <div className="grid grid-cols-2 gap-4">
+                                {/* Toss Winner */}
+                                <div>
+                                  <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-1.5">Toss Winner</p>
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      onClick={() => handleTossPrediction(match.id, 'tossWinner', match.homeTeam)}
+                                      className={cn(
+                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                                        currentTossWinner === match.homeTeam
+                                          ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
+                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                      )}
+                                    >
+                                      {match.homeTeam}
+                                    </button>
+                                    <button
+                                      onClick={() => handleTossPrediction(match.id, 'tossWinner', match.awayTeam)}
+                                      className={cn(
+                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                                        currentTossWinner === match.awayTeam
+                                          ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
+                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                      )}
+                                    >
+                                      {match.awayTeam}
+                                    </button>
+                                  </div>
+                                </div>
+                                {/* Bat / Bowl Choice */}
+                                <div>
+                                  <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-1.5">Elects To</p>
+                                  <div className="flex gap-1.5">
+                                    <button
+                                      onClick={() => handleTossPrediction(match.id, 'battingChoice', 'BAT')}
+                                      className={cn(
+                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                                        currentBattingChoice === 'BAT'
+                                          ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
+                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                      )}
+                                    >
+                                      Bat 1st
+                                    </button>
+                                    <button
+                                      onClick={() => handleTossPrediction(match.id, 'battingChoice', 'BOWL')}
+                                      className={cn(
+                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
+                                        currentBattingChoice === 'BOWL'
+                                          ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
+                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                      )}
+                                    >
+                                      Bowl 1st
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          </>
                         ) : (
-                          <div className="bg-white/5 rounded-xl p-4 text-center border border-white/10">
+                          <div className="bg-white/5 rounded-xl p-4 border border-white/10">
                             {match.status === 'COMPLETED' ? (
                               <div className="flex flex-col items-center gap-2">
                                 <span className="status-label">Winner</span>
@@ -1543,10 +2021,49 @@ function PredictorApp() {
                                     prediction.predictedWinner === match.winner ? "text-green-400" : "text-red-400"
                                   )}>
                                     {prediction.predictedWinner === match.winner ? (
-                                      <><CheckCircle2 className="w-4 h-4" /> Correct Prediction!</>
+                                      <><CheckCircle2 className="w-4 h-4" /> Absolute Legend! 🏆</>
                                     ) : (
-                                      <><XCircle className="w-4 h-4" /> Incorrect Prediction</>
+                                      <><XCircle className="w-4 h-4" /> Better luck next time, champ! 🤡</>
                                     )}
+                                  </div>
+                                )}
+                                {/* Show toss prediction result */}
+                                {ENABLE_TOSS_PREDICTIONS && savedFullPred?.tossWinner && (
+                                  <div className="mt-2 flex items-center gap-3 text-[10px]">
+                                    <span className="text-gray-500">Toss: <span className="text-cyan-400 font-bold">{savedFullPred.tossWinner}</span></span>
+                                    {savedFullPred.battingChoice && (
+                                      <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
+                                    )}
+                                  </div>
+                                )}
+                                {/* Admin: Edit prediction on completed match */}
+                                {isAdminUser && showAdmin && (
+                                  <div className="mt-3 pt-3 border-t border-white/10 w-full">
+                                    <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2 text-center">Admin: Change Prediction</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                      <button
+                                        onClick={() => handlePredict(match.id, match.homeTeam)}
+                                        className={cn(
+                                          "py-2 rounded-lg text-xs font-bold transition-all border",
+                                          prediction?.predictedWinner === match.homeTeam
+                                            ? "bg-blue-500/20 border-blue-500/40 text-blue-400"
+                                            : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                        )}
+                                      >
+                                        {match.homeTeam}
+                                      </button>
+                                      <button
+                                        onClick={() => handlePredict(match.id, match.awayTeam)}
+                                        className={cn(
+                                          "py-2 rounded-lg text-xs font-bold transition-all border",
+                                          prediction?.predictedWinner === match.awayTeam
+                                            ? "bg-blue-500/20 border-blue-500/40 text-blue-400"
+                                            : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
+                                        )}
+                                      >
+                                        {match.awayTeam}
+                                      </button>
+                                    </div>
                                   </div>
                                 )}
                               </div>
@@ -1557,6 +2074,15 @@ function PredictorApp() {
                                 {prediction && (
                                   <span className="text-xs text-[#F27D26]">You picked {prediction.predictedWinner}</span>
                                 )}
+                                {/* Show toss prediction on locked matches */}
+                                {ENABLE_TOSS_PREDICTIONS && savedFullPred?.tossWinner && (
+                                  <div className="mt-1 flex items-center gap-3 text-[10px]">
+                                    <span className="text-gray-500">Toss: <span className="text-cyan-400 font-bold">{savedFullPred.tossWinner}</span></span>
+                                    {savedFullPred.battingChoice && (
+                                      <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1565,7 +2091,7 @@ function PredictorApp() {
                         {/* Actions */}
                         <div className="flex items-center justify-between pt-2">
                           <div className="flex gap-2">
-                            {(!isLocked || isAdminUser) && (
+                            {(!isLocked || (isAdminUser && showAdmin)) && (
                               <>
                                 {isPending && (
                                   <button 
@@ -1597,22 +2123,55 @@ function PredictorApp() {
 
                         {/* Admin Controls */}
                         {showAdmin && match.status !== 'COMPLETED' && (
+                          <div className="mt-4 pt-4 border-t border-white/5">
+                            <button
+                              onClick={() => handleFetchLiveScore(match)}
+                              className="w-full py-2 rounded-lg bg-blue-500/20 text-blue-400 text-xs font-bold border border-blue-500/30 flex items-center justify-center gap-2"
+                            >
+                              <RefreshCw className="w-3 h-3" />
+                              {match.status === 'LIVE' ? 'Fetch Live Score' : 'Check if Live'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Admin Controls */}
+                        {showAdmin && (
                           <div className="mt-6 pt-6 border-t border-white/5">
                             <div className="flex items-center justify-between mb-3">
-                              <p className="status-label">Admin: Set Result</p>
+                              <p className="status-label">Admin: Set Result {match.status === 'COMPLETED' && '(Correction)'}</p>
                             </div>
                             <div className="flex gap-2">
-                              <button 
-                                onClick={() => handleCompleteMatch(match, match.homeTeam)}
-                                className="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold border border-green-500/30"
+                              <button
+                                disabled={completingMatch}
+                                onClick={() => {
+                                  if (window.confirm(`Set ${match.homeTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`)) {
+                                    handleCompleteMatch(match, match.homeTeam);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex-1 py-2 rounded-lg text-xs font-bold border disabled:opacity-50",
+                                  match.winner === match.homeTeam 
+                                    ? "bg-green-500 text-white border-green-500" 
+                                    : "bg-green-500/20 text-green-400 border-green-500/30"
+                                )}
                               >
-                                {match.homeTeam} Wins
+                                {completingMatch ? 'Processing...' : `${match.homeTeam} Wins`}
                               </button>
-                              <button 
-                                onClick={() => handleCompleteMatch(match, match.awayTeam)}
-                                className="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold border border-green-500/30"
+                              <button
+                                disabled={completingMatch}
+                                onClick={() => {
+                                  if (window.confirm(`Set ${match.awayTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`)) {
+                                    handleCompleteMatch(match, match.awayTeam);
+                                  }
+                                }}
+                                className={cn(
+                                  "flex-1 py-2 rounded-lg text-xs font-bold border disabled:opacity-50",
+                                  match.winner === match.awayTeam 
+                                    ? "bg-green-500 text-white border-green-500" 
+                                    : "bg-green-500/20 text-green-400 border-green-500/30"
+                                )}
                               >
-                                {match.awayTeam} Wins
+                                {completingMatch ? 'Processing...' : `${match.awayTeam} Wins`}
                               </button>
                             </div>
                           </div>
@@ -1674,15 +2233,22 @@ function PredictorApp() {
                           </div>
                           <div className="status-label text-[8px]">Points</div>
                         </div>
-                        {isAdminUser && u.uid !== user.uid && (
+                        {isAdminUser && showAdmin && u.uid !== user.uid && (
                           <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleResetUserPoints(u.uid)}
+                              className="p-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors"
+                              title="Reset Points"
+                            >
+                              <RotateCcw className="w-4 h-4" />
+                            </button>
                             {(u.skipsUsed || 0) > 0 && (
                               <button
                                 onClick={() => handleResetSkips(u.uid, u.displayName)}
                                 className="p-2 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors"
                                 title={`Reset Skips (${u.skipsUsed || 0} used)`}
                               >
-                                <RotateCcw className="w-4 h-4" />
+                                <RefreshCw className="w-4 h-4" />
                               </button>
                             )}
                             <button
@@ -1725,28 +2291,37 @@ function PredictorApp() {
               Managing Predictions for: <span className="underline">{selectedUserForAdmin.displayName}</span>
             </span>
           </div>
-          <button 
-            onClick={() => {
-              setSelectedUserForAdmin(null);
-              setPendingPredictions({});
-              showToast("Returned to your own predictions");
-            }}
-            className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-[10px] font-black uppercase transition-colors"
-          >
-            Exit Management
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => handleResetUserPoints(selectedUserForAdmin.uid)}
+              className="px-3 py-1 bg-orange-500/20 hover:bg-orange-500/30 text-orange-400 rounded text-[10px] font-bold uppercase transition-colors flex items-center gap-1.5"
+            >
+              <RotateCcw className="w-3 h-3" />
+              Reset Points
+            </button>
+            <button 
+              onClick={() => {
+                setSelectedUserForAdmin(null);
+                setPendingPredictions({});
+                showToast("Returned to your own predictions");
+              }}
+              className="px-3 py-1 bg-white/20 hover:bg-white/30 rounded text-[10px] font-black uppercase transition-colors"
+            >
+              Exit Management
+            </button>
+          </div>
         </div>
       )}
 
       {/* Floating Save Button */}
-      {Object.keys(pendingPredictions).length > 0 && (
-        <motion.div 
+      {(Object.keys(pendingPredictions).length > 0 || Object.keys(pendingToss).length > 0) && (
+        <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-3"
         >
           <button
-            onClick={() => setPendingPredictions({})}
+            onClick={() => { setPendingPredictions({}); setPendingToss({}); }}
             className="px-4 py-2 rounded-xl bg-white/10 text-gray-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10"
           >
             Clear All Changes
@@ -1765,7 +2340,7 @@ function PredictorApp() {
               <Save className="w-5 h-5" />
             )}
             <span className="uppercase tracking-widest text-sm font-black">
-              {savingPredictions ? 'Saving...' : `Save ${Object.keys(pendingPredictions).length} Changes`}
+              {savingPredictions ? 'Saving...' : `Save ${Object.keys(pendingPredictions).length + (ENABLE_TOSS_PREDICTIONS ? Object.keys(pendingToss).length : 0)} Changes`}
             </span>
           </button>
         </motion.div>
@@ -1789,7 +2364,7 @@ function PredictorApp() {
               <div>
                 <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Match Status</label>
                 <select 
-                  value={editingMatch.status}
+                  value={editingMatch.status || 'UPCOMING'}
                   onChange={(e) => setEditingMatch({ ...editingMatch, status: e.target.value as MatchStatus })}
                   className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
                 >
@@ -1838,6 +2413,34 @@ function PredictorApp() {
                       placeholder="e.g. 172/8"
                     />
                   </div>
+                  {ENABLE_TOSS_PREDICTIONS && (
+                    <>
+                      <div>
+                        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Toss Winner</label>
+                        <select
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                          value={editingMatch.tossWinner || ''}
+                          onChange={(e) => setEditingMatch({ ...editingMatch, tossWinner: e.target.value })}
+                        >
+                          <option value="">Select Toss Winner</option>
+                          <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
+                          <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Batting First</label>
+                        <select
+                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                          value={editingMatch.battingFirst || ''}
+                          onChange={(e) => setEditingMatch({ ...editingMatch, battingFirst: e.target.value })}
+                        >
+                          <option value="">Select Batting First</option>
+                          <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
+                          <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -1845,7 +2448,7 @@ function PredictorApp() {
                 <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Lock Time (ISO Date)</label>
                 <input 
                   type="text"
-                  value={editingMatch.date}
+                  value={editingMatch.date || ''}
                   onChange={(e) => setEditingMatch({ ...editingMatch, date: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm font-mono focus:outline-none focus:border-[#F27D26]"
                   placeholder="2026-03-28T09:00:00-05:00"
@@ -1857,7 +2460,7 @@ function PredictorApp() {
                 <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Display Time (IST)</label>
                 <input 
                   type="text"
-                  value={editingMatch.dateIST}
+                  value={editingMatch.dateIST || ''}
                   onChange={(e) => setEditingMatch({ ...editingMatch, dateIST: e.target.value })}
                   className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
                   placeholder="28 Mar 2026, 7:30 PM IST"
@@ -1907,25 +2510,47 @@ function PredictorApp() {
                   Cancel
                 </button>
                 <button 
-                  onClick={() => {
+                  onClick={async () => {
                     if (editingMatch.status === 'COMPLETED' && editingMatch.winner) {
-                      handleCompleteMatch(editingMatch, editingMatch.winner);
-                      setEditingMatch(null);
+                      // Only show recalculation warning if winner changed or it wasn't completed before
+                      const originalMatch = matches.find(m => m.id === editingMatch.id);
+                      const winnerChanged = originalMatch?.winner !== editingMatch.winner;
+                      const wasNotCompleted = originalMatch?.status !== 'COMPLETED';
+                      
+                      if (winnerChanged || wasNotCompleted) {
+                        if (window.confirm(`Complete match and set ${editingMatch.winner} as winner? This will calculate points for all users.`)) {
+                          await handleCompleteMatch(editingMatch, editingMatch.winner);
+                          setEditingMatch(null);
+                        }
+                      } else {
+                        // Just updating details (scores, etc.) for an already completed match
+                        await handleCompleteMatch(editingMatch, editingMatch.winner);
+                        setEditingMatch(null);
+                      }
                     } else {
-                      handleUpdateMatch(editingMatch.id, {
+                      await handleUpdateMatch(editingMatch.id, {
                         status: editingMatch.status,
                         winner: editingMatch.winner,
                         homeScore: editingMatch.homeScore,
                         awayScore: editingMatch.awayScore,
+                        tossWinner: editingMatch.tossWinner,
+                        battingFirst: editingMatch.battingFirst,
                         date: editingMatch.date,
                         dateIST: editingMatch.dateIST,
                         odds: editingMatch.odds
                       });
+                      setEditingMatch(null);
                     }
                   }}
-                  className="flex-1 py-2 rounded-lg bg-[#F27D26] text-white font-bold text-sm hover:bg-[#F27D26]/80 transition-colors"
+                  disabled={completingMatch || autoUpdating}
+                  className="flex-1 py-2 rounded-lg bg-[#F27D26] text-white font-bold text-sm hover:bg-[#F27D26]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
-                  Save Changes
+                  {completingMatch ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : 'Save Changes'}
                 </button>
               </div>
             </div>

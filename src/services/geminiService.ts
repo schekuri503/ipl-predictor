@@ -1,10 +1,12 @@
 import { GoogleGenAI } from "@google/genai";
 import { Match } from "../types";
+import { trackGeminiCall } from "../firebaseTracker";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
 
 export const analyzeMatch = async (match: Match) => {
   try {
+    trackGeminiCall(1);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Analyze the IPL match between ${match.homeTeam} and ${match.awayTeam} at ${match.venue}. 
@@ -23,6 +25,7 @@ export const analyzeMatch = async (match: Match) => {
 
 export const predictWinner = async (match: Match) => {
   try {
+    trackGeminiCall(1);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Who will win between ${match.homeTeam} and ${match.awayTeam}? Return only the team code (e.g., CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS).`,
@@ -39,6 +42,7 @@ export const predictWinner = async (match: Match) => {
 
 export const fetchOfficialResult = async (match: Match) => {
   try {
+    trackGeminiCall(1);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `What was the official result of the IPL 2026 match between ${match.homeTeam} and ${match.awayTeam} played on ${match.date}? 
@@ -62,6 +66,7 @@ export const fetchOfficialResult = async (match: Match) => {
 
 export const fetchLiveMatchData = async (match: Match) => {
   try {
+    trackGeminiCall(1);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `What is the current live status of the IPL 2026 cricket match: ${match.homeTeam} vs ${match.awayTeam} scheduled on ${match.dateIST} at ${match.venue}?
@@ -86,6 +91,7 @@ export const fetchLiveMatchData = async (match: Match) => {
 
 export const fetchUpdatedSchedule = async () => {
   try {
+    trackGeminiCall(1);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `Provide the full match schedule for IPL 2026. 
