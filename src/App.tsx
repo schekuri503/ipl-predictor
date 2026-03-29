@@ -737,72 +737,78 @@ function PredictorApp() {
     if (!isAdminUser) return;
     const batch = writeBatch(db);
     
-    // 1. Update Match
-    batch.update(doc(db, 'matches', match.id), {
-      status: 'COMPLETED',
-      winner,
-      homeScore: match.homeScore || null,
-      awayScore: match.awayScore || null
-    });
+    try {
+      const batch = writeBatch(db);
 
-    // 2. Get all predictions for this match
-    const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
-    trackReads(predsSnap.docs.length || 1);
-    const matchPredictions = predsSnap.docs.map(d => d.data() as Prediction);
-    
-    const winners = matchPredictions.filter(p => p.predictedWinner === winner);
-    const losers = matchPredictions.filter(p => p.predictedWinner !== winner);
-    
-    // Point Multiplier
-    let multiplier = 1;
-    if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
-    if (match.type === 'FINAL') multiplier = 4;
+      // 1. Update Match
+      batch.update(doc(db, 'matches', match.id), {
+        status: 'COMPLETED',
+        winner,
+        homeScore: match.homeScore || null,
+        awayScore: match.awayScore || null
+      });
 
-    // Calculate points
-    // if anyone losses they will get -1, if anyone wins total lossers/ total winners
-    const totalLosers = losers.length;
-    const totalWinners = winners.length;
-    
-    const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
-    const loserPoints = -1;
+      // 2. Get all predictions for this match
+      const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
+      trackReads(predsSnap.docs.length || 1);
+      const matchPredictions = predsSnap.docs.map(d => d.data() as Prediction);
+      
+      const winners = matchPredictions.filter(p => p.predictedWinner === winner);
+      const losers = matchPredictions.filter(p => p.predictedWinner !== winner);
+      
+      // Point Multiplier
+      let multiplier = 1;
+      if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
+      if (match.type === 'FINAL') multiplier = 4;
 
-    // Update User Points
-    // We also need to handle "skips"
-    // Find all users who didn't predict
-    const allUsersSnap = await getDocs(collection(db, 'users'));
-    trackReads(allUsersSnap.docs.length || 1);
-    const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
-    
-    for (const u of allUserProfiles) {
-      const userPred = matchPredictions.find(p => p.userId === u.uid);
-      let pointChange = 0;
-      let skipChange = 0;
+      // Calculate points
+      // if anyone losses they will get -1, if anyone wins total lossers/ total winners
+      const totalLosers = losers.length;
+      const totalWinners = winners.length;
+      
+      const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
+      const loserPoints = -1;
 
-      if (userPred) {
-        pointChange = userPred.predictedWinner === winner ? winnerPoints : loserPoints;
-      } else {
-        // Did not predict
-        if (match.type === 'FINAL') {
-          pointChange = -1; // Cannot skip finals
-        } else if (u.skipsUsed < TOTAL_SKIPS_ALLOWED) {
-          skipChange = 1;
-          // If it's QF/SF, can only skip one match if they have left over
-          // This logic is a bit complex for a simple batch, but let's assume they use a skip if available
-          pointChange = 0;
+      // Update User Points
+      const allUsersSnap = await getDocs(collection(db, 'users'));
+      trackReads(allUsersSnap.docs.length || 1);
+      const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
+      
+      for (const u of allUserProfiles) {
+        const userPred = matchPredictions.find(p => p.userId === u.uid);
+        let pointChange = 0;
+        let skipChange = 0;
+
+        if (userPred) {
+          pointChange = userPred.predictedWinner === winner ? winnerPoints : loserPoints;
         } else {
-          pointChange = -1; // No skips left
+          // Did not predict
+          if (match.type === 'FINAL') {
+            pointChange = -1; // Cannot skip finals
+          } else if (u.skipsUsed < TOTAL_SKIPS_ALLOWED) {
+            skipChange = 1;
+            pointChange = 0;
+          } else {
+            pointChange = -1; // No skips left
+          }
         }
+
+        batch.update(doc(db, 'users', u.uid), {
+          totalPoints: (u.totalPoints || 0) + (pointChange * multiplier),
+          skipsUsed: (u.skipsUsed || 0) + skipChange
+        });
       }
 
-      batch.update(doc(db, 'users', u.uid), {
-        totalPoints: (u.totalPoints || 0) + (pointChange * multiplier),
-        skipsUsed: (u.skipsUsed || 0) + skipChange
-      });
+      await batch.commit();
+      trackWrites(1 + allUserProfiles.length);
+      
+      await fetchMatches(true);
+      await fetchVoteCounts(matches);
+      refreshUsageStats();
+      showToast("Match completed and points awarded!");
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `matches/${match.id}`);
     }
-
-    await batch.commit();
-    trackWrites(1 + allUserProfiles.length); // 1 match + all user updates
-    refreshUsageStats();
   };
 
   // Admin: Auto-update match statuses (UPCOMING→LIVE, LIVE→COMPLETED with results from web)
@@ -1317,15 +1323,27 @@ function PredictorApp() {
                   }
                 }
                 
-                const totalVotes = voteCounts[match.homeTeam] + voteCounts[match.awayTeam];
+                const homeWinners = voteCounts[match.homeTeam] || 0;
+                const awayWinners = voteCounts[match.awayTeam] || 0;
+                const drawWinners = voteCounts['DRAW'] || 0;
+                const totalVotes = homeWinners + awayWinners + drawWinners;
 
-                // Calculate live odds as losers/winners ratio
-                const homeWinners = voteCounts[match.homeTeam];
-                const awayWinners = voteCounts[match.awayTeam];
-                const liveOdds = {
+                let displayOdds = {
                   home: homeWinners > 0 ? parseFloat((awayWinners / homeWinners).toFixed(2)) : 0,
                   away: awayWinners > 0 ? parseFloat((homeWinners / awayWinners).toFixed(2)) : 0
                 };
+
+                // If completed, show actual points awarded
+                if (match.status === 'COMPLETED' && match.winner) {
+                  const totalWinners = voteCounts[match.winner] || 0;
+                  const totalLosers = (homeWinners + awayWinners + drawWinners) - totalWinners;
+                  const winnerPoints = totalWinners > 0 ? parseFloat((totalLosers / totalWinners).toFixed(2)) : 0;
+                  
+                  displayOdds = {
+                    home: match.winner === match.homeTeam ? winnerPoints : -1,
+                    away: match.winner === match.awayTeam ? winnerPoints : -1
+                  };
+                }
                 
                 return (
                   <motion.div 
@@ -1392,8 +1410,8 @@ function PredictorApp() {
                             <span className="font-bold text-sm text-center">{TEAMS[match.homeTeam as keyof typeof TEAMS]?.name}</span>
                             {totalVotes > 0 ? (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{liveOdds.home}</span>
-                                <span className="text-[7px] text-gray-500 font-bold uppercase">odds</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{displayOdds.home}</span>
+                                <span className="text-[7px] text-gray-500 font-bold uppercase">{match.status === 'COMPLETED' ? 'pts' : 'odds'}</span>
                               </div>
                             ) : match.odds && match.odds.home !== undefined && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
@@ -1416,6 +1434,14 @@ function PredictorApp() {
                         
                         <div className="flex flex-col items-center gap-1">
                           <span className="text-2xl font-black text-white/10 italic">VS</span>
+                          {(voteCounts['DRAW'] || 0) > 0 && (
+                            <button
+                              onClick={() => setShowVoters({ matchId: match.id, teamCode: 'DRAW' })}
+                              className="text-[9px] font-black text-gray-500 hover:text-[#F27D26] transition-colors"
+                            >
+                              {voteCounts['DRAW']} DRAW
+                            </button>
+                          )}
                         </div>
 
                         {/* Away Team */}
@@ -1428,8 +1454,8 @@ function PredictorApp() {
                             <span className="font-bold text-sm text-center">{TEAMS[match.awayTeam as keyof typeof TEAMS]?.name}</span>
                             {totalVotes > 0 ? (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
-                                <span className="text-[8px] text-[#F27D26] font-black">{liveOdds.away}</span>
-                                <span className="text-[7px] text-gray-500 font-bold uppercase">odds</span>
+                                <span className="text-[8px] text-[#F27D26] font-black">{displayOdds.away}</span>
+                                <span className="text-[7px] text-gray-500 font-bold uppercase">{match.status === 'COMPLETED' ? 'pts' : 'odds'}</span>
                               </div>
                             ) : match.odds && match.odds.away !== undefined && (
                               <div className="flex items-center gap-1 mt-0.5 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
