@@ -936,8 +936,8 @@ function PredictorApp() {
         }
       }
 
-      // If already completed and winner is the same, update other details
-      if (isAlreadyCompleted && currentMatchData.winner === winner) {
+      // If already completed and winner is the same, just update other details
+      if (isAlreadyCompleted && currentMatchData.winner && currentMatchData.winner === winner) {
         await updateDoc(doc(db, 'matches', match.id), {
           homeScore: match.homeScore || null,
           awayScore: match.awayScore || null,
@@ -954,8 +954,8 @@ function PredictorApp() {
         return;
       }
 
-      // If already completed but winner is DIFFERENT, we update the winner and then RECALCULATE ALL POINTS
-      if (isAlreadyCompleted) {
+      // If already completed with a DIFFERENT winner, update winner and recalculate ALL points
+      if (isAlreadyCompleted && currentMatchData.winner && currentMatchData.winner !== winner) {
         if (!window.confirm(`This match was already completed with ${currentMatchData.winner} as winner. Changing winner to ${winner} will trigger a full points recalculation for ALL users. Continue?`)) {
           setCompletingMatch(false);
           return;
@@ -978,6 +978,9 @@ function PredictorApp() {
         setCompletingMatch(false);
         return;
       }
+
+      // If match is completed but winner was never set, fall through to
+      // the normal first-time completion flow below to calculate points
 
       // 2. Get all predictions for this match
       const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
