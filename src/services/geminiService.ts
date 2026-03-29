@@ -41,7 +41,7 @@ export const fetchOfficialResult = async (match: Match) => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `What was the official result of the IPL 2026 match between ${match.homeTeam} and ${match.awayTeam} played on ${match.date}? 
+      contents: `Use official IPL sources first (iplt20.com, scores.iplt20.com) to find the result of IPL 2026 match between ${match.homeTeam} and ${match.awayTeam} played on ${match.date}. 
       Return a JSON object with:
       - winner: The team code (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS) or "DRAW" or "ABANDONED".
       - status: "COMPLETED" or "ABANDONED".
@@ -64,7 +64,7 @@ export const fetchUpdatedSchedule = async () => {
   try {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Provide the full match schedule for IPL 2026. 
+      contents: `Provide the full match schedule for IPL 2026 using iplt20.com / scores.iplt20.com as primary source. 
       Return an array of objects, each containing:
       - id: unique string (e.g. match_1)
       - homeTeam: team code

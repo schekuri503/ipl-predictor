@@ -13,6 +13,7 @@ import {
   onSnapshot, 
   doc, 
   setDoc, 
+  addDoc,
   deleteDoc, 
   query, 
   orderBy, 
@@ -54,7 +55,7 @@ import { twMerge } from 'tailwind-merge';
 import { auth, db, signInWithGoogle, logout } from './firebase';
 import { Match, UserProfile, Prediction, MatchStatus, MatchType } from './types';
 import { TEAMS, INITIAL_MATCHES, TOTAL_SKIPS_ALLOWED, APP_LOGO } from './constants';
-import { fetchUpdatedSchedule } from './services/geminiService';
+import { fetchOfficialResult, fetchUpdatedSchedule } from './services/geminiService';
 
 // --- Error Handling ---
 
@@ -236,8 +237,25 @@ function PredictorApp() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [liveVoteCounts, setLiveVoteCounts] = useState<Record<string, Record<string, number>>>({});
+  const [usageLast24h, setUsageLast24h] = useState<{ reads: number; writes: number }>({ reads: 0, writes: 0 });
 
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
+  const FIRESTORE_FREE_LIMITS = { reads: 50000, writes: 20000 };
+
+  const recordUsage = async (reads: number, writes: number, operation: string) => {
+    if (!user) return;
+    try {
+      await addDoc(collection(db, 'usageLogs'), {
+        userId: user.uid,
+        reads,
+        writes,
+        operation,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Usage logging failed', error);
+    }
+  };
 
   // Fetch matches on demand (called on login + manual refresh + after writes)
   // Returns the fetched match data so callers can pass it to fetchVoteCounts
@@ -252,6 +270,7 @@ function PredictorApp() {
         limit(matchFilter === 'completed' ? 40 : 30)
       );
       const snap = await getDocs(q);
+      void recordUsage(snap.size + 1, 0, `fetchMatches:${matchFilter}`);
       const matchData = snap.docs.map(d => ({
         ...d.data(),
         homeVotes: d.data().homeVotes || 0,
@@ -276,6 +295,7 @@ function PredictorApp() {
     if (!user) return;
     try {
       const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', user.uid)));
+      void recordUsage(snap.size + 1, 0, 'fetchUserPredictions');
       setPredictions(snap.docs.map(d => d.data() as Prediction));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'predictions');
@@ -298,6 +318,7 @@ function PredictorApp() {
           where('matchId', 'in', chunk)
         );
         const snap = await getDocs(q);
+        void recordUsage(snap.size + 1, 0, 'fetchVoteCounts');
         snap.docs.forEach(d => {
           const pred = d.data() as Prediction;
           if (!counts[pred.matchId]) counts[pred.matchId] = {};
@@ -316,6 +337,7 @@ function PredictorApp() {
     if (!user) return;
     try {
       const snap = await getDocs(query(collection(db, 'users'), orderBy('totalPoints', 'desc'), limit(50)));
+      void recordUsage(snap.size + 1, 0, 'fetchLeaderboard');
       setUsers(snap.docs.map(d => d.data() as UserProfile));
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'users');
@@ -395,6 +417,26 @@ function PredictorApp() {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    if (!user || !isAdminUser || !showAdmin) return;
+    const loadUsage = async () => {
+      try {
+        const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+        const snap = await getDocs(query(collection(db, 'usageLogs'), where('timestamp', '>=', since), limit(500)));
+        const totals = snap.docs.reduce((acc, d) => {
+          const data = d.data() as { reads?: number; writes?: number };
+          acc.reads += data.reads || 0;
+          acc.writes += data.writes || 0;
+          return acc;
+        }, { reads: 0, writes: 0 });
+        setUsageLast24h(totals);
+      } catch (error) {
+        handleFirestoreError(error, OperationType.LIST, 'usageLogs');
+      }
+    };
+    loadUsage();
+  }, [user, isAdminUser, showAdmin]);
+
   // Completed matches are loaded via effect #2 which re-runs when matchFilter changes
 
   // Fetch predictions for selected user (Admin only)
@@ -465,6 +507,13 @@ function PredictorApp() {
     if (!isAdminUser) return;
     setSyncingSchedule(true);
     try {
+      const syncMetaRef = doc(db, 'system', 'scheduleSync');
+      const syncMetaSnap = await getDocs(query(collection(db, 'system'), limit(10)));
+      const syncMeta = syncMetaSnap.docs.find(d => d.id === 'scheduleSync')?.data() as { lastSyncAt?: string } | undefined;
+      if (syncMeta?.lastSyncAt && (Date.now() - new Date(syncMeta.lastSyncAt).getTime()) < 24 * 60 * 60 * 1000) {
+        showToast("Schedule already synced in the last 24 hours.");
+        return;
+      }
       const newSchedule = await fetchUpdatedSchedule();
       if (newSchedule && Array.isArray(newSchedule)) {
         const batch = writeBatch(db);
@@ -475,7 +524,9 @@ function PredictorApp() {
             status: m.status || 'UPCOMING'
           }, { merge: true });
         });
+        batch.set(syncMetaRef, { lastSyncAt: new Date().toISOString(), source: 'iplt20.com' }, { merge: true });
         await batch.commit();
+        void recordUsage(syncMetaSnap.size + 1, newSchedule.length + 1, 'syncSchedule');
         await fetchMatches();
       }
     } catch (error) {
@@ -722,6 +773,66 @@ function PredictorApp() {
     }
 
     await batch.commit();
+    void recordUsage(predsSnap.size + allUsersSnap.size + 2, allUserProfiles.length + 1, 'completeMatch');
+  };
+
+  const handleAutoUpdateMatches = async () => {
+    if (!isAdminUser) return;
+    try {
+      const snap = await getDocs(collection(db, 'matches'));
+      const now = Date.now();
+      const fourHoursMs = 4 * 60 * 60 * 1000;
+      let updates = 0;
+
+      for (const matchDoc of snap.docs) {
+        const match = matchDoc.data() as Match;
+        const start = new Date(match.date).getTime();
+        const end = start + fourHoursMs;
+
+        if (now >= start && now < end && match.status === 'UPCOMING') {
+          await updateDoc(doc(db, 'matches', match.id), { status: 'LIVE' });
+          updates++;
+        } else if (now >= end && match.status !== 'COMPLETED') {
+          const result = await fetchOfficialResult(match);
+          if (result?.winner) {
+            await updateDoc(doc(db, 'matches', match.id), {
+              status: 'COMPLETED',
+              winner: result.winner,
+              homeScore: result.homeScore || null,
+              awayScore: result.awayScore || null
+            });
+            updates++;
+          }
+        }
+      }
+
+      void recordUsage(snap.size + 1, updates, 'autoUpdateMatches');
+      if (updates > 0) {
+        showToast(`Auto-updated ${updates} matches.`);
+        const freshMatches = await fetchMatches();
+        await fetchVoteCounts(freshMatches);
+      } else {
+        showToast('No matches needed status updates.');
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'matches/auto-update');
+    }
+  };
+
+  const handleResetAdminSkips = async () => {
+    if (!isAdminUser) return;
+    try {
+      const adminSnap = await getDocs(query(collection(db, 'users'), where('email', '==', 's.chaitanya.503@gmail.com'), limit(1)));
+      if (adminSnap.empty) {
+        showToast('Admin profile not found.', 'error');
+        return;
+      }
+      await updateDoc(adminSnap.docs[0].ref, { skipsUsed: 0 });
+      void recordUsage(adminSnap.size + 1, 1, 'resetAdminSkips');
+      showToast('Skip count reset for s.chaitanya.503@gmail.com');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, 'users/admin-skip-reset');
+    }
   };
 
   const handleSignIn = async () => {
@@ -854,7 +965,7 @@ function PredictorApp() {
                   {profile && (
                     <span className="text-[10px] text-[#F27D26] font-black uppercase tracking-tighter flex items-center gap-1">
                       <Coins className="w-3 h-3" />
-                      {TOTAL_SKIPS_ALLOWED - (profile.skipsUsed || 0)} Skips Left
+                      {Math.max(0, TOTAL_SKIPS_ALLOWED - (profile.skipsUsed || 0))} Skips Left
                     </span>
                   )}
                 </div>
@@ -944,6 +1055,23 @@ function PredictorApp() {
                 <Database className={cn("w-3 h-3", recalculatingVotes && "animate-spin")} />
                 Recalculate Votes
               </button>
+              <button
+                onClick={handleAutoUpdateMatches}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors"
+              >
+                <Clock className="w-3 h-3" />
+                Auto Update Match Status
+              </button>
+              <button
+                onClick={handleResetAdminSkips}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors"
+              >
+                <Undo2 className="w-3 h-3" />
+                Reset Admin Skip
+              </button>
+              <div className="w-full text-[10px] text-gray-400 border-t border-white/10 pt-2 mt-1">
+                Last 24h approximate Firestore usage: Reads {usageLast24h.reads}/{FIRESTORE_FREE_LIMITS.reads} free, Writes {usageLast24h.writes}/{FIRESTORE_FREE_LIMITS.writes} free.
+              </div>
             </div>
           )}
         </div>
