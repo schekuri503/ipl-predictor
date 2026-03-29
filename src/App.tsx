@@ -799,9 +799,9 @@ function PredictorApp() {
   };
 
   const [recalculatingPoints, setRecalculatingPoints] = useState(false);
-  const handleRecalculateAllPoints = async () => {
+  const handleRecalculateAllPoints = async (skipConfirmation = false) => {
     if (!isAdminUser || recalculatingPoints) return;
-    if (!window.confirm("CRITICAL: This will reset all user points to 0 and recalculate them based on ALL completed matches. Continue?")) return;
+    if (!skipConfirmation && !window.confirm("CRITICAL: This will reset all user points to 0 and recalculate them based on ALL completed matches. Continue?")) return;
     
     setRecalculatingPoints(true);
     try {
@@ -960,8 +960,8 @@ function PredictorApp() {
           setCompletingMatch(false);
           return;
         }
-        
-        await updateDoc(doc(db, 'matches', match.id), { 
+
+        await updateDoc(doc(db, 'matches', match.id), {
           winner,
           homeScore: match.homeScore || null,
           awayScore: match.awayScore || null,
@@ -972,7 +972,8 @@ function PredictorApp() {
           odds: match.odds
         });
         trackWrites(1);
-        await handleRecalculateAllPoints();
+        // Skip confirmation in recalculate since we already confirmed above
+        await handleRecalculateAllPoints(true);
         await fetchMatches(true);
         setCompletingMatch(false);
         return;
@@ -2512,21 +2513,9 @@ function PredictorApp() {
                 <button 
                   onClick={async () => {
                     if (editingMatch.status === 'COMPLETED' && editingMatch.winner) {
-                      // Only show recalculation warning if winner changed or it wasn't completed before
-                      const originalMatch = matches.find(m => m.id === editingMatch.id);
-                      const winnerChanged = originalMatch?.winner !== editingMatch.winner;
-                      const wasNotCompleted = originalMatch?.status !== 'COMPLETED';
-                      
-                      if (winnerChanged || wasNotCompleted) {
-                        if (window.confirm(`Complete match and set ${editingMatch.winner} as winner? This will calculate points for all users.`)) {
-                          await handleCompleteMatch(editingMatch, editingMatch.winner);
-                          setEditingMatch(null);
-                        }
-                      } else {
-                        // Just updating details (scores, etc.) for an already completed match
-                        await handleCompleteMatch(editingMatch, editingMatch.winner);
-                        setEditingMatch(null);
-                      }
+                      // handleCompleteMatch handles its own confirmation dialogs internally
+                      await handleCompleteMatch(editingMatch, editingMatch.winner);
+                      setEditingMatch(null);
                     } else {
                       await handleUpdateMatch(editingMatch.id, {
                         status: editingMatch.status,
