@@ -794,76 +794,94 @@ function PredictorApp() {
   };
 
   // Admin: Complete Match & Calculate Points
+  const [completingMatch, setCompletingMatch] = useState(false);
   const handleCompleteMatch = async (match: Match, winner: string) => {
-    if (!isAdminUser) return;
-    const batch = writeBatch(db);
-    
-    // 1. Update Match
-    batch.update(doc(db, 'matches', match.id), {
-      status: 'COMPLETED',
-      winner,
-      homeScore: match.homeScore || null,
-      awayScore: match.awayScore || null
-    });
-
-    // 2. Get all predictions for this match
-    const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
-    trackReads(predsSnap.docs.length || 1);
-    const matchPredictions = predsSnap.docs.map(d => d.data() as Prediction);
-    
-    const winners = matchPredictions.filter(p => p.predictedWinner === winner);
-    const losers = matchPredictions.filter(p => p.predictedWinner !== winner);
-    
-    // Point Multiplier
-    let multiplier = 1;
-    if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
-    if (match.type === 'FINAL') multiplier = 4;
-
-    // Calculate points
-    // if anyone losses they will get -1, if anyone wins total lossers/ total winners
-    const totalLosers = losers.length;
-    const totalWinners = winners.length;
-    
-    const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
-    const loserPoints = -1;
-
-    // Update User Points
-    // We also need to handle "skips"
-    // Find all users who didn't predict
-    const allUsersSnap = await getDocs(collection(db, 'users'));
-    trackReads(allUsersSnap.docs.length || 1);
-    const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
-    
-    for (const u of allUserProfiles) {
-      const userPred = matchPredictions.find(p => p.userId === u.uid);
-      let pointChange = 0;
-      let skipChange = 0;
-
-      if (userPred) {
-        pointChange = userPred.predictedWinner === winner ? winnerPoints : loserPoints;
-      } else {
-        // Did not predict
-        if (match.type === 'FINAL') {
-          pointChange = -1; // Cannot skip finals
-        } else if (u.skipsUsed < TOTAL_SKIPS_ALLOWED) {
-          skipChange = 1;
-          // If it's QF/SF, can only skip one match if they have left over
-          // This logic is a bit complex for a simple batch, but let's assume they use a skip if available
-          pointChange = 0;
-        } else {
-          pointChange = -1; // No skips left
+    if (!isAdminUser || completingMatch) return;
+    setCompletingMatch(true);
+    try {
+      // GUARD: Check current match status in Firestore to prevent double-completion
+      const matchSnap = await getDocs(query(collection(db, 'matches'), where('__name__', '==', match.id)));
+      trackReads(1);
+      if (matchSnap.docs.length > 0) {
+        const currentMatch = matchSnap.docs[0].data();
+        if (currentMatch.status === 'COMPLETED') {
+          showToast(`Match ${match.homeTeam} vs ${match.awayTeam} is already completed. Points were already calculated.`, 'error');
+          setCompletingMatch(false);
+          return;
         }
       }
 
-      batch.update(doc(db, 'users', u.uid), {
-        totalPoints: (u.totalPoints || 0) + (pointChange * multiplier),
-        skipsUsed: (u.skipsUsed || 0) + skipChange
-      });
-    }
+      const batch = writeBatch(db);
 
-    await batch.commit();
-    trackWrites(1 + allUserProfiles.length); // 1 match + all user updates
-    refreshUsageStats();
+      // 1. Update Match
+      batch.update(doc(db, 'matches', match.id), {
+        status: 'COMPLETED',
+        winner,
+        homeScore: match.homeScore || null,
+        awayScore: match.awayScore || null
+      });
+
+      // 2. Get all predictions for this match
+      const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
+      trackReads(predsSnap.docs.length || 1);
+      const matchPredictions = predsSnap.docs.map(d => d.data() as Prediction);
+
+      const winners = matchPredictions.filter(p => p.predictedWinner === winner);
+      const losers = matchPredictions.filter(p => p.predictedWinner !== winner);
+
+      // Point Multiplier
+      let multiplier = 1;
+      if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
+      if (match.type === 'FINAL') multiplier = 4;
+
+      // Calculate points: winners get (losers/winners), losers get -1
+      const totalLosers = losers.length;
+      const totalWinners = winners.length;
+
+      const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
+      const loserPoints = -1;
+
+      // Update User Points & handle skips
+      const allUsersSnap = await getDocs(collection(db, 'users'));
+      trackReads(allUsersSnap.docs.length || 1);
+      const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
+
+      for (const u of allUserProfiles) {
+        const userPred = matchPredictions.find(p => p.userId === u.uid);
+        let pointChange = 0;
+        let skipChange = 0;
+
+        if (userPred) {
+          pointChange = userPred.predictedWinner === winner ? winnerPoints : loserPoints;
+        } else {
+          // Did not predict
+          if (match.type === 'FINAL') {
+            pointChange = -1; // Cannot skip finals
+          } else if (u.skipsUsed < TOTAL_SKIPS_ALLOWED) {
+            skipChange = 1;
+            pointChange = 0;
+          } else {
+            pointChange = -1; // No skips left
+          }
+        }
+
+        batch.update(doc(db, 'users', u.uid), {
+          totalPoints: (u.totalPoints || 0) + (pointChange * multiplier),
+          skipsUsed: (u.skipsUsed || 0) + skipChange
+        });
+      }
+
+      await batch.commit();
+      trackWrites(1 + allUserProfiles.length);
+      refreshUsageStats();
+      await fetchMatches(true);
+      showToast(`Match completed! ${winner} wins. ${totalWinners} correct, ${totalLosers} wrong.`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `complete-match/${match.id}`);
+      showToast("Failed to complete match", "error");
+    } finally {
+      setCompletingMatch(false);
+    }
   };
 
   // Admin: Auto-update match statuses (UPCOMING→LIVE, LIVE→COMPLETED with results from web)
@@ -1755,17 +1773,27 @@ function PredictorApp() {
                               <p className="status-label">Admin: Set Result</p>
                             </div>
                             <div className="flex gap-2">
-                              <button 
-                                onClick={() => handleCompleteMatch(match, match.homeTeam)}
-                                className="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold border border-green-500/30"
+                              <button
+                                disabled={completingMatch}
+                                onClick={() => {
+                                  if (window.confirm(`Set ${match.homeTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`)) {
+                                    handleCompleteMatch(match, match.homeTeam);
+                                  }
+                                }}
+                                className="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold border border-green-500/30 disabled:opacity-50"
                               >
-                                {match.homeTeam} Wins
+                                {completingMatch ? 'Processing...' : `${match.homeTeam} Wins`}
                               </button>
-                              <button 
-                                onClick={() => handleCompleteMatch(match, match.awayTeam)}
-                                className="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold border border-green-500/30"
+                              <button
+                                disabled={completingMatch}
+                                onClick={() => {
+                                  if (window.confirm(`Set ${match.awayTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`)) {
+                                    handleCompleteMatch(match, match.awayTeam);
+                                  }
+                                }}
+                                className="flex-1 py-2 rounded-lg bg-green-500/20 text-green-400 text-xs font-bold border border-green-500/30 disabled:opacity-50"
                               >
-                                {match.awayTeam} Wins
+                                {completingMatch ? 'Processing...' : `${match.awayTeam} Wins`}
                               </button>
                             </div>
                           </div>
@@ -2062,8 +2090,10 @@ function PredictorApp() {
                 <button 
                   onClick={() => {
                     if (editingMatch.status === 'COMPLETED' && editingMatch.winner) {
-                      handleCompleteMatch(editingMatch, editingMatch.winner);
-                      setEditingMatch(null);
+                      if (window.confirm(`Complete match and set ${editingMatch.winner} as winner? This will calculate points for all users.`)) {
+                        handleCompleteMatch(editingMatch, editingMatch.winner);
+                        setEditingMatch(null);
+                      }
                     } else {
                       handleUpdateMatch(editingMatch.id, {
                         status: editingMatch.status,
