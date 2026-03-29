@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { 
   onAuthStateChanged, 
   User 
@@ -43,7 +43,11 @@ import {
   Trash2,
   ExternalLink,
   Save,
-  Database
+  Database,
+  Activity,
+  BarChart3,
+  RotateCcw,
+  Zap
 } from 'lucide-react';
 import { format, isAfter, parseISO, isToday } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
@@ -54,7 +58,8 @@ import { twMerge } from 'tailwind-merge';
 import { auth, db, signInWithGoogle, logout } from './firebase';
 import { Match, UserProfile, Prediction, MatchStatus, MatchType } from './types';
 import { TEAMS, INITIAL_MATCHES, TOTAL_SKIPS_ALLOWED, APP_LOGO } from './constants';
-import { fetchUpdatedSchedule } from './services/geminiService';
+import { fetchUpdatedSchedule, fetchOfficialResult, fetchLiveMatchData } from './services/geminiService';
+import { trackReads, trackWrites, trackDeletes, getUsageStats, type FirebaseUsageStats } from './firebaseTracker';
 
 // --- Error Handling ---
 
@@ -236,13 +241,42 @@ function PredictorApp() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [liveVoteCounts, setLiveVoteCounts] = useState<Record<string, Record<string, number>>>({});
+  const [firebaseUsage, setFirebaseUsage] = useState<FirebaseUsageStats>(getUsageStats());
+  const [autoUpdating, setAutoUpdating] = useState(false);
+  const lastFetchRef = useRef<Record<string, number>>({});
+  const [tick, setTick] = useState(0); // triggers re-render for effective match status
 
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
 
-  // Fetch matches on demand (called on login + manual refresh + after writes)
-  // Returns the fetched match data so callers can pass it to fetchVoteCounts
-  const fetchMatches = async (): Promise<Match[]> => {
+  // Compute effective match status based on current time (client-side, no Firebase reads)
+  const getEffectiveStatus = useCallback((match: Match): MatchStatus => {
+    if (match.status === 'COMPLETED') return 'COMPLETED';
+    const now = new Date();
+    const matchDate = parseISO(match.date);
+    if (isAfter(now, matchDate)) return 'LIVE';
+    return match.status;
+  }, []);
+
+  const refreshUsageStats = useCallback(() => {
+    setFirebaseUsage(getUsageStats());
+  }, []);
+
+  // Fetch matches on demand with caching to reduce Firebase reads
+  // forceRefresh bypasses cache (used by manual refresh button)
+  const fetchMatches = async (forceRefresh = false): Promise<Match[]> => {
     if (!user) return [];
+
+    // Cache: skip Firestore fetch if recent enough
+    const cacheKey = matchFilter;
+    const lastFetch = lastFetchRef.current[cacheKey] || 0;
+    const maxAge = matchFilter === 'completed' ? 24 * 60 * 60 * 1000 : 5 * 60 * 1000; // 24h for completed, 5min for live/upcoming
+
+    if (!forceRefresh && (Date.now() - lastFetch) < maxAge) {
+      const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
+      const cached = matches.filter(m => statusFilter.includes(m.status));
+      if (cached.length > 0) return cached;
+    }
+
     try {
       const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
       const q = query(
@@ -252,6 +286,7 @@ function PredictorApp() {
         limit(matchFilter === 'completed' ? 40 : 30)
       );
       const snap = await getDocs(q);
+      trackReads(snap.docs.length || 1);
       const matchData = snap.docs.map(d => ({
         ...d.data(),
         homeVotes: d.data().homeVotes || 0,
@@ -264,6 +299,9 @@ function PredictorApp() {
         const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
         return unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       });
+
+      lastFetchRef.current[cacheKey] = Date.now();
+      refreshUsageStats();
       return matchData;
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'matches');
@@ -276,7 +314,9 @@ function PredictorApp() {
     if (!user) return;
     try {
       const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', user.uid)));
+      trackReads(snap.docs.length || 1);
       setPredictions(snap.docs.map(d => d.data() as Prediction));
+      refreshUsageStats();
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'predictions');
     }
@@ -298,6 +338,7 @@ function PredictorApp() {
           where('matchId', 'in', chunk)
         );
         const snap = await getDocs(q);
+        trackReads(snap.docs.length || 1);
         snap.docs.forEach(d => {
           const pred = d.data() as Prediction;
           if (!counts[pred.matchId]) counts[pred.matchId] = {};
@@ -306,6 +347,7 @@ function PredictorApp() {
       }
 
       setLiveVoteCounts(counts);
+      refreshUsageStats();
     } catch (error) {
       console.error('Error fetching vote counts:', error);
     }
@@ -316,7 +358,9 @@ function PredictorApp() {
     if (!user) return;
     try {
       const snap = await getDocs(query(collection(db, 'users'), orderBy('totalPoints', 'desc'), limit(50)));
+      trackReads(snap.docs.length || 1);
       setUsers(snap.docs.map(d => d.data() as UserProfile));
+      refreshUsageStats();
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, 'users');
     }
@@ -325,9 +369,10 @@ function PredictorApp() {
   // Refresh everything - called when user hits refresh button
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    const [freshMatches] = await Promise.all([fetchMatches(), fetchUserPredictions()]);
+    const [freshMatches] = await Promise.all([fetchMatches(true), fetchUserPredictions()]);
     await fetchVoteCounts(freshMatches);
     if (activeTab === 'leaderboard') await fetchLeaderboard();
+    refreshUsageStats();
     setIsRefreshing(false);
   };
 
@@ -461,6 +506,19 @@ function PredictorApp() {
     fetchVoters();
   }, [showVoters]);
 
+  // Re-render every 2 minutes to update effective match statuses (UPCOMING→LIVE based on time)
+  useEffect(() => {
+    const interval = setInterval(() => setTick(t => t + 1), 120000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Refresh firebase usage stats periodically
+  useEffect(() => {
+    refreshUsageStats();
+    const interval = setInterval(refreshUsageStats, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSyncSchedule = async () => {
     if (!isAdminUser) return;
     setSyncingSchedule(true);
@@ -476,7 +534,9 @@ function PredictorApp() {
           }, { merge: true });
         });
         await batch.commit();
-        await fetchMatches();
+        trackWrites(newSchedule.length);
+        await fetchMatches(true);
+        refreshUsageStats();
       }
     } catch (error) {
       console.error("Error syncing schedule", error);
@@ -564,15 +624,23 @@ function PredictorApp() {
         }
       });
       
+      // Track writes/deletes
+      const writeCount = Object.values(pendingPredictions).filter(t => t !== '').length;
+      const deleteCount = Object.values(pendingPredictions).filter(t => t === '').length;
+      if (writeCount > 0) trackWrites(writeCount);
+      if (deleteCount > 0) trackDeletes(deleteCount);
+
       setPendingPredictions({});
       if (selectedUserForAdmin) {
         const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
+        trackReads(snap.docs.length || 1);
         setAdminPredictions(snap.docs.map(d => d.data() as Prediction));
       } else {
         await fetchUserPredictions();
       }
-      const freshMatches = await fetchMatches();
-      await fetchVoteCounts(freshMatches);
+      // Skip refetching matches (they don't change on prediction save) - just refresh vote counts
+      await fetchVoteCounts();
+      refreshUsageStats();
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
       handleFirestoreError(e, OperationType.WRITE, 'batch-predictions');
@@ -587,8 +655,11 @@ function PredictorApp() {
       const batch = writeBatch(db);
       batch.delete(doc(db, 'users', userId));
       const predsSnap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', userId)));
+      trackReads(predsSnap.docs.length || 1);
       predsSnap.forEach(p => batch.delete(p.ref));
       await batch.commit();
+      trackDeletes(1 + predsSnap.docs.length);
+      refreshUsageStats();
       setUserToDelete(null);
     } catch (error) {
       handleFirestoreError(error, OperationType.DELETE, `users/${userId}`);
@@ -599,8 +670,10 @@ function PredictorApp() {
     if (!isAdminUser) return;
     try {
       await updateDoc(doc(db, 'matches', matchId), updates);
+      trackWrites(1);
       setEditingMatch(null);
-      await fetchMatches();
+      await fetchMatches(true);
+      refreshUsageStats();
       showToast("Match updated successfully!");
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, `matches/${matchId}`);
@@ -613,9 +686,11 @@ function PredictorApp() {
     try {
       // Fetch ALL matches to ensure we update everything
       const allMatchesSnap = await getDocs(collection(db, 'matches'));
+      trackReads(allMatchesSnap.docs.length || 1);
       const allMatches = allMatchesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Match));
-      
+
       const allPredsSnap = await getDocs(collection(db, 'predictions'));
+      trackReads(allPredsSnap.docs.length || 1);
       const allPreds = allPredsSnap.docs.map(doc => doc.data() as Prediction);
       
       const counts: Record<string, { home: number, away: number }> = {};
@@ -644,8 +719,10 @@ function PredictorApp() {
       });
       
       await batch.commit();
-      const freshMatches = await fetchMatches();
+      trackWrites(Object.keys(counts).length);
+      const freshMatches = await fetchMatches(true);
       await fetchVoteCounts(freshMatches);
+      refreshUsageStats();
       showToast("Vote counts recalculated successfully!");
     } catch (error) {
       console.error("Error recalculating votes", error);
@@ -670,6 +747,7 @@ function PredictorApp() {
 
     // 2. Get all predictions for this match
     const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
+    trackReads(predsSnap.docs.length || 1);
     const matchPredictions = predsSnap.docs.map(d => d.data() as Prediction);
     
     const winners = matchPredictions.filter(p => p.predictedWinner === winner);
@@ -692,6 +770,7 @@ function PredictorApp() {
     // We also need to handle "skips"
     // Find all users who didn't predict
     const allUsersSnap = await getDocs(collection(db, 'users'));
+    trackReads(allUsersSnap.docs.length || 1);
     const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
     
     for (const u of allUserProfiles) {
@@ -722,6 +801,96 @@ function PredictorApp() {
     }
 
     await batch.commit();
+    trackWrites(1 + allUserProfiles.length); // 1 match + all user updates
+    refreshUsageStats();
+  };
+
+  // Admin: Auto-update match statuses (UPCOMING→LIVE, LIVE→COMPLETED with results from web)
+  const handleAutoUpdateMatches = async () => {
+    if (!isAdminUser) return;
+    setAutoUpdating(true);
+    try {
+      const now = new Date();
+      const statusBatch = writeBatch(db);
+      let statusUpdates = 0;
+      const matchesToComplete: Match[] = [];
+
+      for (const match of matches) {
+        const matchDate = parseISO(match.date);
+
+        // UPCOMING → LIVE: if match start time has passed
+        if (match.status === 'UPCOMING' && isAfter(now, matchDate)) {
+          statusBatch.update(doc(db, 'matches', match.id), { status: 'LIVE' as MatchStatus });
+          statusUpdates++;
+        }
+
+        // LIVE → try to complete: if 4+ hours since match start
+        if (match.status === 'LIVE' || (match.status === 'UPCOMING' && isAfter(now, matchDate))) {
+          const hoursElapsed = (now.getTime() - matchDate.getTime()) / (1000 * 60 * 60);
+          if (hoursElapsed >= 4) {
+            matchesToComplete.push(match);
+          }
+        }
+      }
+
+      // Batch update UPCOMING → LIVE
+      if (statusUpdates > 0) {
+        await statusBatch.commit();
+        trackWrites(statusUpdates);
+      }
+
+      // Try to fetch results and complete eligible matches
+      let completedCount = 0;
+      for (const match of matchesToComplete) {
+        try {
+          showToast(`Fetching result for ${match.homeTeam} vs ${match.awayTeam}...`);
+          const result = await fetchOfficialResult(match);
+          if (result?.winner && result.status === 'COMPLETED' &&
+              result.winner !== 'DRAW' && result.winner !== 'ABANDONED') {
+            const updatedMatch = {
+              ...match,
+              homeScore: result.homeScore || match.homeScore,
+              awayScore: result.awayScore || match.awayScore
+            };
+            await handleCompleteMatch(updatedMatch, result.winner);
+            completedCount++;
+          } else if (result?.homeScore || result?.awayScore) {
+            // Update scores even if not completed yet
+            await handleUpdateMatch(match.id, {
+              homeScore: result.homeScore || match.homeScore,
+              awayScore: result.awayScore || match.awayScore
+            });
+          }
+        } catch (e) {
+          console.error(`Failed to fetch result for ${match.id}:`, e);
+        }
+      }
+
+      await fetchMatches(true);
+      refreshUsageStats();
+      showToast(`Auto-update: ${statusUpdates} → LIVE, ${completedCount} completed`);
+    } catch (error) {
+      console.error("Error auto-updating matches:", error);
+      showToast("Failed to auto-update matches", "error");
+    } finally {
+      setAutoUpdating(false);
+    }
+  };
+
+  // Admin: Reset skip count for a user
+  const handleResetSkips = async (userId: string, userName?: string) => {
+    if (!isAdminUser) return;
+    try {
+      await updateDoc(doc(db, 'users', userId), { skipsUsed: 0 });
+      trackWrites(1);
+      refreshUsageStats();
+      showToast(`Skip count reset to 0 for ${userName || 'user'}!`);
+      // Refresh leaderboard to show updated data
+      if (activeTab === 'leaderboard') await fetchLeaderboard();
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`);
+      showToast("Failed to reset skips", "error");
+    }
   };
 
   const handleSignIn = async () => {
@@ -902,48 +1071,128 @@ function PredictorApp() {
           </div>
 
           {isAdminUser && showAdmin && (
-            <div className="flex flex-wrap items-center gap-2 p-2 bg-white/5 rounded-xl border border-white/10">
-              <a 
-                href="https://console.firebase.google.com/project/gen-lang-client-0471952212/firestore/databases/ai-studio-36e88d64-d641-4011-8fda-fbfe027be7a7/data"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F27D26]/10 text-[#F27D26] text-xs font-bold hover:bg-[#F27D26]/20 transition-colors"
-              >
-                <Database className="w-3 h-3" />
-                Database
-              </a>
-              {process.env.GOOGLE_SHEETS_ID ? (
-                <a 
-                  href={`https://docs.google.com/spreadsheets/d/${process.env.GOOGLE_SHEETS_ID}`}
+            <div className="space-y-3">
+              {/* Admin Action Buttons */}
+              <div className="flex flex-wrap items-center gap-2 p-2 bg-white/5 rounded-xl border border-white/10">
+                <a
+                  href="https://console.firebase.google.com/project/gen-lang-client-0471952212/firestore/databases/ai-studio-36e88d64-d641-4011-8fda-fbfe027be7a7/data"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 text-xs font-bold hover:bg-green-500/20 transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#F27D26]/10 text-[#F27D26] text-xs font-bold hover:bg-[#F27D26]/20 transition-colors"
                 >
-                  <ExternalLink className="w-3 h-3" />
-                  Google Sheet
+                  <Database className="w-3 h-3" />
+                  Database
                 </a>
-              ) : (
-                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-[10px] font-bold">
-                  <AlertCircle className="w-3 h-3" />
-                  Sheet ID not set
+                <button
+                  onClick={handleSyncSchedule}
+                  disabled={syncingSchedule}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-bold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+                >
+                  <RefreshCw className={cn("w-3 h-3", syncingSchedule && "animate-spin")} />
+                  Sync Schedule
+                </button>
+                <button
+                  onClick={handleRecalculateVotes}
+                  disabled={recalculatingVotes}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-500 text-xs font-bold hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
+                >
+                  <Database className={cn("w-3 h-3", recalculatingVotes && "animate-spin")} />
+                  Recalculate Votes
+                </button>
+                <button
+                  onClick={handleAutoUpdateMatches}
+                  disabled={autoUpdating}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/10 text-green-400 text-xs font-bold hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                >
+                  <Zap className={cn("w-3 h-3", autoUpdating && "animate-spin")} />
+                  {autoUpdating ? 'Updating...' : 'Auto-Update Matches'}
+                </button>
+                {profile && (profile.skipsUsed || 0) > 0 && (
+                  <button
+                    onClick={() => handleResetSkips(user!.uid, 'yourself')}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/10 text-purple-400 text-xs font-bold hover:bg-purple-500/20 transition-colors"
+                  >
+                    <RotateCcw className="w-3 h-3" />
+                    Reset My Skips ({profile.skipsUsed})
+                  </button>
+                )}
+              </div>
+
+              {/* Firebase Usage Dashboard */}
+              <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+                <div className="flex items-center gap-2 mb-3">
+                  <Activity className="w-3.5 h-3.5 text-[#F27D26]" />
+                  <span className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+                    Firebase Usage Today ({firebaseUsage.date})
+                  </span>
                 </div>
-              )}
-              <button 
-                onClick={handleSyncSchedule}
-                disabled={syncingSchedule}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-bold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
-              >
-                <RefreshCw className={cn("w-3 h-3", syncingSchedule && "animate-spin")} />
-                Sync Schedule
-              </button>
-              <button 
-                onClick={handleRecalculateVotes}
-                disabled={recalculatingVotes}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-yellow-500/10 text-yellow-500 text-xs font-bold hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
-              >
-                <Database className={cn("w-3 h-3", recalculatingVotes && "animate-spin")} />
-                Recalculate Votes
-              </button>
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Reads */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold uppercase text-blue-400">Reads</span>
+                      <span className="text-[9px] font-mono text-gray-500">
+                        {firebaseUsage.reads.toLocaleString()} / {firebaseUsage.limits.reads.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((firebaseUsage.reads / firebaseUsage.limits.reads) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[8px] text-gray-600">
+                      {((firebaseUsage.reads / firebaseUsage.limits.reads) * 100).toFixed(1)}% used
+                    </span>
+                  </div>
+                  {/* Writes */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold uppercase text-green-400">Writes</span>
+                      <span className="text-[9px] font-mono text-gray-500">
+                        {firebaseUsage.writes.toLocaleString()} / {firebaseUsage.limits.writes.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-green-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((firebaseUsage.writes / firebaseUsage.limits.writes) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[8px] text-gray-600">
+                      {((firebaseUsage.writes / firebaseUsage.limits.writes) * 100).toFixed(1)}% used
+                    </span>
+                  </div>
+                  {/* Deletes */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[9px] font-bold uppercase text-red-400">Deletes</span>
+                      <span className="text-[9px] font-mono text-gray-500">
+                        {firebaseUsage.deletes.toLocaleString()} / {firebaseUsage.limits.deletes.toLocaleString()}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-red-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min((firebaseUsage.deletes / firebaseUsage.limits.deletes) * 100, 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-[8px] text-gray-600">
+                      {((firebaseUsage.deletes / firebaseUsage.limits.deletes) * 100).toFixed(1)}% used
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-2 pt-2 border-t border-white/5 flex items-center justify-between">
+                  <span className="text-[8px] text-gray-600 uppercase">
+                    Free Tier: 50K reads, 20K writes, 20K deletes / day
+                  </span>
+                  <span className="text-[8px] text-gray-600">
+                    {firebaseUsage.limits.reads - firebaseUsage.reads > 0
+                      ? `${(firebaseUsage.limits.reads - firebaseUsage.reads).toLocaleString()} reads remaining`
+                      : 'Reads limit reached!'}
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1037,8 +1286,9 @@ function PredictorApp() {
     ? (pendingPredictions[match.id] === '' ? null : { predictedWinner: pendingPredictions[match.id] })
     : currentPredictions.find(p => p.matchId === match.id);
   
+                const effectiveStatus = getEffectiveStatus(match);
                 const isPending = pendingPredictions[match.id] !== undefined;
-                const isLocked = isAfter(new Date(), parseISO(match.date)) || match.status !== 'UPCOMING';
+                const isLocked = isAfter(new Date(), parseISO(match.date)) || effectiveStatus !== 'UPCOMING';
                 const hasPredicted = !!prediction;
                 
                 // Use live vote counts computed from predictions (source of truth)
@@ -1083,13 +1333,13 @@ function PredictorApp() {
                     key={match.id}
                     className={cn(
                       "widget-container overflow-hidden transition-all",
-                      match.status === 'LIVE' && "ring-2 ring-red-500/50 border-red-500/30 shadow-lg shadow-red-500/10"
+                      effectiveStatus === 'LIVE' && "ring-2 ring-red-500/50 border-red-500/30 shadow-lg shadow-red-500/10"
                     )}
                   >
                     <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
                       <div className="flex flex-col">
                         <div className="flex items-center gap-1.5 text-[#F27D26] mb-1">
-                          {match.status === 'LIVE' ? (
+                          {effectiveStatus === 'LIVE' ? (
                             <div className="flex items-center gap-1.5">
                               <span className="relative flex h-2 w-2">
                                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -1118,7 +1368,7 @@ function PredictorApp() {
                             {match.type.replace('_', ' ')}
                           </span>
                         )}
-                        <MatchBadge status={match.status} />
+                        <MatchBadge status={effectiveStatus} />
                       </div>
                       {isAdminUser && (
                         <button 
@@ -1400,7 +1650,16 @@ function PredictorApp() {
                         </div>
                         {isAdminUser && u.uid !== user.uid && (
                           <div className="flex items-center gap-2">
-                            <button 
+                            {(u.skipsUsed || 0) > 0 && (
+                              <button
+                                onClick={() => handleResetSkips(u.uid, u.displayName)}
+                                className="p-2 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors"
+                                title={`Reset Skips (${u.skipsUsed || 0} used)`}
+                              >
+                                <RotateCcw className="w-4 h-4" />
+                              </button>
+                            )}
+                            <button
                               onClick={() => {
                                 setSelectedUserForAdmin(u);
                                 setActiveTab('matches');
@@ -1412,7 +1671,7 @@ function PredictorApp() {
                             >
                               <Settings className="w-4 h-4" />
                             </button>
-                            <button 
+                            <button
                               onClick={() => setUserToDelete(u)}
                               className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
                               title="Delete User"

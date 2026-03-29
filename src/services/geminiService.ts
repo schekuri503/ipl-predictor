@@ -60,6 +60,30 @@ export const fetchOfficialResult = async (match: Match) => {
   }
 };
 
+export const fetchLiveMatchData = async (match: Match) => {
+  try {
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `What is the current live status of the IPL 2026 cricket match: ${match.homeTeam} vs ${match.awayTeam} scheduled on ${match.dateIST} at ${match.venue}?
+      Check iplt20.com, ESPNcricinfo, or any reliable cricket source.
+      Return a JSON object with:
+      - status: "UPCOMING" if not started yet, "LIVE" if currently being played, "COMPLETED" if finished
+      - winner: The winning team code (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS) if completed, null otherwise
+      - homeScore: Current/final score for ${match.homeTeam} (e.g. "185/4 (20)"), null if not available
+      - awayScore: Current/final score for ${match.awayTeam}, null if not available
+      - summary: Brief status description (e.g. "CSK won by 5 wickets" or "MI batting - 120/3 (15.2)")`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        responseMimeType: "application/json",
+      },
+    });
+    return JSON.parse(response.text);
+  } catch (error) {
+    console.error("Error fetching live match data", error);
+    return null;
+  }
+};
+
 export const fetchUpdatedSchedule = async () => {
   try {
     const response = await ai.models.generateContent({
