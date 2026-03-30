@@ -45,13 +45,15 @@ export const fetchOfficialResult = async (match: Match) => {
     trackGeminiCall(1);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `What was the official result of the IPL 2026 match between ${match.homeTeam} and ${match.awayTeam} played on ${match.date}? 
+      contents: `What was the official result of the IPL 2026 match between ${match.homeTeam} and ${match.awayTeam} played on ${match.date}?
       Return a JSON object with:
       - winner: The team code (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS) or "DRAW" or "ABANDONED".
       - status: "COMPLETED" or "ABANDONED".
-      - homeScore: The final score for ${match.homeTeam} (e.g. "185/4").
-      - awayScore: The final score for ${match.awayTeam} (e.g. "172/8").
-      - scoreSummary: A brief string of the final score.`,
+      - homeScore: The final score for ${match.homeTeam} (e.g. "185/4 (20)").
+      - awayScore: The final score for ${match.awayTeam} (e.g. "172/8 (20)").
+      - tossWinner: The team code that won the toss (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS).
+      - battingFirst: The team code that batted first.
+      - summary: A brief 1-2 sentence match summary (e.g. "CSK won by 5 wickets. Ruturaj scored 82*").`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
@@ -76,7 +78,9 @@ export const fetchLiveMatchData = async (match: Match) => {
       - winner: The winning team code (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS) if completed, null otherwise
       - homeScore: Current/final score for ${match.homeTeam} (e.g. "185/4 (20)"), null if not available
       - awayScore: Current/final score for ${match.awayTeam}, null if not available
-      - summary: Brief status description (e.g. "CSK won by 5 wickets" or "MI batting - 120/3 (15.2)")`,
+      - tossWinner: The team code that won the toss, null if toss hasn't happened yet
+      - battingFirst: The team code that is batting first, null if not known yet
+      - summary: Brief status description (e.g. "CSK won by 5 wickets" or "MI batting - 120/3 (15.2)" or "CSK won toss, elected to bat")`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",

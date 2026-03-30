@@ -63,7 +63,7 @@ import { fetchUpdatedSchedule, fetchOfficialResult, fetchLiveMatchData } from '.
 import { trackReads, trackWrites, trackDeletes, trackGeminiCall, getUsageStats, type FirebaseUsageStats } from './firebaseTracker';
 
 // --- Feature Flags ---
-const ENABLE_TOSS_PREDICTIONS = false;
+const ENABLE_TOSS_PREDICTIONS = true;
 
 // --- Error Handling ---
 
@@ -1030,7 +1030,8 @@ function PredictorApp() {
             homeScore: match.homeScore || null,
             awayScore: match.awayScore || null,
             tossWinner: match.tossWinner || null,
-            battingFirst: match.battingFirst || null
+            battingFirst: match.battingFirst || null,
+            summary: match.summary || null
           });
         }
 
@@ -1106,7 +1107,9 @@ function PredictorApp() {
         if (liveData.awayScore) updates.awayScore = liveData.awayScore;
         if (liveData.summary) updates.summary = liveData.summary;
         if (liveData.status) updates.status = liveData.status;
-        
+        if (liveData.tossWinner) updates.tossWinner = liveData.tossWinner;
+        if (liveData.battingFirst) updates.battingFirst = liveData.battingFirst;
+
         if (Object.keys(updates).length > 0) {
           await handleUpdateMatch(match.id, updates);
           showToast("Live score updated successfully");
@@ -1167,12 +1170,14 @@ function PredictorApp() {
         try {
           if (!silent) showToast(`Fetching live score for ${match.homeTeam} vs ${match.awayTeam}...`);
           const liveData = await fetchLiveMatchData(match);
-          if (liveData && (liveData.homeScore || liveData.awayScore || liveData.summary)) {
+          if (liveData && (liveData.homeScore || liveData.awayScore || liveData.summary || liveData.tossWinner)) {
             await handleUpdateMatch(match.id, {
               homeScore: liveData.homeScore || match.homeScore,
               awayScore: liveData.awayScore || match.awayScore,
               summary: liveData.summary || match.summary,
-              status: liveData.status || match.status
+              status: liveData.status || match.status,
+              tossWinner: liveData.tossWinner || match.tossWinner,
+              battingFirst: liveData.battingFirst || match.battingFirst
             });
             liveUpdates++;
           }
@@ -1190,15 +1195,21 @@ function PredictorApp() {
             const updatedMatch = {
               ...match,
               homeScore: result.homeScore || match.homeScore,
-              awayScore: result.awayScore || match.awayScore
+              awayScore: result.awayScore || match.awayScore,
+              tossWinner: result.tossWinner || match.tossWinner,
+              battingFirst: result.battingFirst || match.battingFirst,
+              summary: result.summary || match.summary
             };
             await handleCompleteMatch(updatedMatch, result.winner);
             completedCount++;
-          } else if (result?.homeScore || result?.awayScore) {
-            // Update scores even if not completed yet
+          } else if (result?.homeScore || result?.awayScore || result?.tossWinner) {
+            // Update scores/toss even if not completed yet
             await handleUpdateMatch(match.id, {
               homeScore: result.homeScore || match.homeScore,
-              awayScore: result.awayScore || match.awayScore
+              awayScore: result.awayScore || match.awayScore,
+              tossWinner: result.tossWinner || match.tossWinner,
+              battingFirst: result.battingFirst || match.battingFirst,
+              summary: result.summary || match.summary
             });
           }
         } catch (e) {
@@ -1854,6 +1865,31 @@ function PredictorApp() {
                         </div>
                       </div>
 
+                      {/* Live Score Summary & Toss Info */}
+                      {(effectiveStatus === 'LIVE' || effectiveStatus === 'COMPLETED') && (match.summary || match.tossWinner) && (
+                        <div className="px-2 mb-4 space-y-2">
+                          {match.summary && (
+                            <div className={cn(
+                              "px-3 py-2 rounded-lg text-xs font-medium text-center border",
+                              effectiveStatus === 'LIVE'
+                                ? "bg-red-500/10 border-red-500/20 text-red-300"
+                                : "bg-white/5 border-white/10 text-gray-400"
+                            )}>
+                              <Activity className="w-3 h-3 inline-block mr-1.5 -mt-0.5" />
+                              {match.summary}
+                            </div>
+                          )}
+                          {match.tossWinner && (
+                            <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
+                              <span>Toss: <span className="text-cyan-400 font-bold">{match.tossWinner}</span></span>
+                              {match.battingFirst && (
+                                <span>Bat 1st: <span className="text-amber-400 font-bold">{match.battingFirst}</span></span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Vote Progress Bar */}
                       {totalVotes > 0 && (
                         <div className="px-6 mb-4">
@@ -1880,7 +1916,7 @@ function PredictorApp() {
                           <>
                           {/* Match Winner Prediction */}
                           <div>
-                            <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2">Who Wins?</p>
+                            <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2">Pick the Winner</p>
                             <div className="grid grid-cols-2 gap-3 mb-3">
                               <button
                                 onClick={() => handlePredict(match.id, match.homeTeam)}
@@ -1905,54 +1941,68 @@ function PredictorApp() {
                                 {match.awayTeam}
                               </button>
                             </div>
-                            
-                            {/* Dynamic Winner Options */}
+
+                            {/* Toss-based Winner Options */}
                             {ENABLE_TOSS_PREDICTIONS && (
-                              <div className="grid grid-cols-3 gap-2">
-                                <button
-                                  onClick={() => handlePredict(match.id, 'TOSS_WINNER')}
-                                  className={cn(
-                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
-                                    prediction?.predictedWinner === 'TOSS_WINNER'
-                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
-                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                  )}
-                                >
-                                  Toss Winner
-                                </button>
-                                <button
-                                  onClick={() => handlePredict(match.id, 'BATTING_FIRST')}
-                                  className={cn(
-                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
-                                    prediction?.predictedWinner === 'BATTING_FIRST'
-                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
-                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                  )}
-                                >
-                                  Batting 1st
-                                </button>
-                                <button
-                                  onClick={() => handlePredict(match.id, 'BATTING_SECOND')}
-                                  className={cn(
-                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
-                                    prediction?.predictedWinner === 'BATTING_SECOND'
-                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
-                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                  )}
-                                >
-                                  Batting 2nd
-                                </button>
-                              </div>
+                              <>
+                                <p className="text-[8px] font-bold uppercase text-gray-600 tracking-widest mb-1.5 text-center">Or predict by toss outcome</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <button
+                                    onClick={() => handlePredict(match.id, 'TOSS_WINNER')}
+                                    className={cn(
+                                      "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                      prediction?.predictedWinner === 'TOSS_WINNER'
+                                        ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-md shadow-indigo-500/10"
+                                        : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:border-indigo-500/30"
+                                    )}
+                                    title="Your pick resolves to whichever team wins the toss"
+                                  >
+                                    Toss Winner
+                                  </button>
+                                  <button
+                                    onClick={() => handlePredict(match.id, 'BATTING_FIRST')}
+                                    className={cn(
+                                      "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                      prediction?.predictedWinner === 'BATTING_FIRST'
+                                        ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-md shadow-indigo-500/10"
+                                        : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:border-indigo-500/30"
+                                    )}
+                                    title="Your pick resolves to whichever team bats first"
+                                  >
+                                    Bat 1st Wins
+                                  </button>
+                                  <button
+                                    onClick={() => handlePredict(match.id, 'BATTING_SECOND')}
+                                    className={cn(
+                                      "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                      prediction?.predictedWinner === 'BATTING_SECOND'
+                                        ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-md shadow-indigo-500/10"
+                                        : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:border-indigo-500/30"
+                                    )}
+                                    title="Your pick resolves to whichever team bats second (chases)"
+                                  >
+                                    Bat 2nd Wins
+                                  </button>
+                                </div>
+                                {['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(prediction?.predictedWinner || '') && (
+                                  <p className="text-[8px] text-indigo-400/70 mt-1.5 text-center italic">
+                                    {prediction?.predictedWinner === 'TOSS_WINNER' && 'Your pick will resolve to the team that wins the toss'}
+                                    {prediction?.predictedWinner === 'BATTING_FIRST' && 'Your pick will resolve to the team that bats first'}
+                                    {prediction?.predictedWinner === 'BATTING_SECOND' && 'Your pick will resolve to the team that bats second (chases)'}
+                                  </p>
+                                )}
+                              </>
                             )}
                           </div>
 
-                          {/* Toss & Batting Choice Prediction */}
+                          {/* Toss Prediction (Optional Bonus) */}
                           {ENABLE_TOSS_PREDICTIONS && (
                             <div className="pt-3 border-t border-white/5">
+                              <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2">Toss Prediction <span className="text-gray-600 normal-case">(optional)</span></p>
                               <div className="grid grid-cols-2 gap-4">
                                 {/* Toss Winner */}
                                 <div>
-                                  <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-1.5">Toss Winner</p>
+                                  <p className="text-[8px] font-bold uppercase text-gray-600 tracking-widest mb-1.5">Who wins the toss?</p>
                                   <div className="flex gap-1.5">
                                     <button
                                       onClick={() => handleTossPrediction(match.id, 'tossWinner', match.homeTeam)}
@@ -1980,7 +2030,7 @@ function PredictorApp() {
                                 </div>
                                 {/* Bat / Bowl Choice */}
                                 <div>
-                                  <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-1.5">Elects To</p>
+                                  <p className="text-[8px] font-bold uppercase text-gray-600 tracking-widest mb-1.5">Toss winner elects to</p>
                                   <div className="flex gap-1.5">
                                     <button
                                       onClick={() => handleTossPrediction(match.id, 'battingChoice', 'BAT')}
@@ -2019,22 +2069,39 @@ function PredictorApp() {
                                   <Trophy className="w-5 h-5" />
                                   {match.winner}
                                 </div>
-                                {prediction && (
-                                  <div className={cn(
-                                    "mt-2 flex items-center gap-2 text-sm font-medium",
-                                    prediction.predictedWinner === match.winner ? "text-green-400" : "text-red-400"
-                                  )}>
-                                    {prediction.predictedWinner === match.winner ? (
-                                      <><CheckCircle2 className="w-4 h-4" /> Absolute Legend! 🏆</>
-                                    ) : (
-                                      <><XCircle className="w-4 h-4" /> Better luck next time, champ! 🤡</>
-                                    )}
-                                  </div>
-                                )}
+                                {prediction && (() => {
+                                  const resolvedTeam = savedFullPred ? resolvePredictedTeam(savedFullPred, match) : prediction.predictedWinner;
+                                  const isDynamic = ['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(savedFullPred?.predictedWinner || prediction.predictedWinner);
+                                  const isCorrect = resolvedTeam === match.winner;
+                                  return (
+                                    <>
+                                      <div className={cn(
+                                        "mt-2 flex items-center gap-2 text-sm font-medium",
+                                        isCorrect ? "text-green-400" : "text-red-400"
+                                      )}>
+                                        {isCorrect ? (
+                                          <><CheckCircle2 className="w-4 h-4" /> Absolute Legend! 🏆</>
+                                        ) : (
+                                          <><XCircle className="w-4 h-4" /> Better luck next time, champ! 🤡</>
+                                        )}
+                                      </div>
+                                      {isDynamic && resolvedTeam && (
+                                        <p className="text-[10px] text-indigo-400 mt-1">
+                                          You picked <span className="font-bold">{savedFullPred?.predictedWinner || prediction.predictedWinner}</span> → resolved to <span className="font-bold">{resolvedTeam}</span>
+                                        </p>
+                                      )}
+                                      {!isDynamic && (
+                                        <p className="text-[10px] text-gray-500 mt-1">
+                                          You picked <span className="font-bold">{prediction.predictedWinner}</span>
+                                        </p>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                                 {/* Show toss prediction result */}
-                                {ENABLE_TOSS_PREDICTIONS && savedFullPred?.tossWinner && (
+                                {savedFullPred?.tossWinner && (
                                   <div className="mt-2 flex items-center gap-3 text-[10px]">
-                                    <span className="text-gray-500">Toss: <span className="text-cyan-400 font-bold">{savedFullPred.tossWinner}</span></span>
+                                    <span className="text-gray-500">Toss pick: <span className={cn("font-bold", savedFullPred.tossWinner === match.tossWinner ? "text-green-400" : "text-red-400")}>{savedFullPred.tossWinner}</span></span>
                                     {savedFullPred.battingChoice && (
                                       <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
                                     )}
@@ -2075,13 +2142,27 @@ function PredictorApp() {
                               <div className="flex flex-col items-center gap-1">
                                 <AlertCircle className="w-5 h-5 text-gray-500 mb-1" />
                                 <span className="text-sm font-medium text-gray-400">Predictions Locked</span>
-                                {prediction && (
-                                  <span className="text-xs text-[#F27D26]">You picked {prediction.predictedWinner}</span>
-                                )}
+                                {prediction && (() => {
+                                  const isDynamic = ['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(savedFullPred?.predictedWinner || prediction.predictedWinner);
+                                  const resolvedTeam = savedFullPred && (match.tossWinner || match.battingFirst) ? resolvePredictedTeam(savedFullPred, match) : null;
+                                  return (
+                                    <>
+                                      <span className="text-xs text-[#F27D26]">
+                                        You picked {isDynamic ? (savedFullPred?.predictedWinner || prediction.predictedWinner).replace('_', ' ') : prediction.predictedWinner}
+                                      </span>
+                                      {isDynamic && resolvedTeam && (
+                                        <span className="text-[10px] text-indigo-400">→ Resolves to <span className="font-bold">{resolvedTeam}</span></span>
+                                      )}
+                                      {isDynamic && !resolvedTeam && (
+                                        <span className="text-[10px] text-gray-500 italic">Waiting for toss result...</span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                                 {/* Show toss prediction on locked matches */}
-                                {ENABLE_TOSS_PREDICTIONS && savedFullPred?.tossWinner && (
+                                {savedFullPred?.tossWinner && (
                                   <div className="mt-1 flex items-center gap-3 text-[10px]">
-                                    <span className="text-gray-500">Toss: <span className="text-cyan-400 font-bold">{savedFullPred.tossWinner}</span></span>
+                                    <span className="text-gray-500">Toss pick: <span className={cn("font-bold", match.tossWinner ? (savedFullPred.tossWinner === match.tossWinner ? "text-green-400" : "text-red-400") : "text-cyan-400")}>{savedFullPred.tossWinner}</span></span>
                                     {savedFullPred.battingChoice && (
                                       <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
                                     )}
@@ -2417,34 +2498,43 @@ function PredictorApp() {
                       placeholder="e.g. 172/8"
                     />
                   </div>
-                  {ENABLE_TOSS_PREDICTIONS && (
-                    <>
-                      <div>
-                        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Toss Winner</label>
-                        <select
-                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
-                          value={editingMatch.tossWinner || ''}
-                          onChange={(e) => setEditingMatch({ ...editingMatch, tossWinner: e.target.value })}
-                        >
-                          <option value="">Select Toss Winner</option>
-                          <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
-                          <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Batting First</label>
-                        <select
-                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
-                          value={editingMatch.battingFirst || ''}
-                          onChange={(e) => setEditingMatch({ ...editingMatch, battingFirst: e.target.value })}
-                        >
-                          <option value="">Select Batting First</option>
-                          <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
-                          <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
-                        </select>
-                      </div>
-                    </>
-                  )}
+                  <div>
+                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Toss Winner</label>
+                    <select
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                      value={editingMatch.tossWinner || ''}
+                      onChange={(e) => setEditingMatch({ ...editingMatch, tossWinner: e.target.value })}
+                    >
+                      <option value="">Select Toss Winner</option>
+                      <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
+                      <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Batting First</label>
+                    <select
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                      value={editingMatch.battingFirst || ''}
+                      onChange={(e) => setEditingMatch({ ...editingMatch, battingFirst: e.target.value })}
+                    >
+                      <option value="">Select Batting First</option>
+                      <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
+                      <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {(editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED') && (
+                <div>
+                  <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Match Summary</label>
+                  <input
+                    type="text"
+                    value={editingMatch.summary || ''}
+                    onChange={(e) => setEditingMatch({ ...editingMatch, summary: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                    placeholder="e.g. CSK won by 5 wickets. Ruturaj scored 82*"
+                  />
                 </div>
               )}
 
@@ -2527,6 +2617,7 @@ function PredictorApp() {
                         awayScore: editingMatch.awayScore,
                         tossWinner: editingMatch.tossWinner,
                         battingFirst: editingMatch.battingFirst,
+                        summary: editingMatch.summary,
                         date: editingMatch.date,
                         dateIST: editingMatch.dateIST,
                         odds: editingMatch.odds
