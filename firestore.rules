@@ -32,8 +32,6 @@
 //   - matchId: string (required) - ID of the match
 //   - predictedWinner: string (required) - Team code or dynamic pick (TOSS_WINNER, BATTING_FIRST, BATTING_SECOND)
 //   - timestamp: string (required, ISO 8601) - When the prediction was made
-//   - tossWinner: string (optional) - Predicted toss winner team code
-//   - battingChoice: string (optional) - 'BAT' or 'BOWL' - predicted toss decision
 //
 // ===============================================================
 
@@ -113,10 +111,7 @@ service cloud.firestore {
              data.matchId is string && data.matchId.size() > 0 &&
              data.predictedWinner is string && data.predictedWinner.size() > 0 &&
              data.timestamp is string &&
-             id == data.userId + "_" + data.matchId &&
-             // Optional toss fields validation
-             (!('tossWinner' in data.keys()) || (data.tossWinner is string && data.tossWinner.size() > 0)) &&
-             (!('battingChoice' in data.keys()) || data.battingChoice in ['BAT', 'BOWL']);
+             id == data.userId + "_" + data.matchId;
     }
   }
 }

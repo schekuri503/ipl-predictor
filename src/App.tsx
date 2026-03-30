@@ -245,7 +245,6 @@ function PredictorApp() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
   const [liveVoteCounts, setLiveVoteCounts] = useState<Record<string, Record<string, number>>>({});
-  const [pendingToss, setPendingToss] = useState<Record<string, { tossWinner?: string; battingChoice?: 'BAT' | 'BOWL' }>>({});
   const [firebaseUsage, setFirebaseUsage] = useState<FirebaseUsageStats>(getUsageStats());
   const [autoUpdating, setAutoUpdating] = useState(false);
   const lastFetchRef = useRef<Record<string, number>>({});
@@ -594,11 +593,6 @@ function PredictorApp() {
       delete next[matchId];
       return next;
     });
-    setPendingToss(prev => {
-      const next = { ...prev };
-      delete next[matchId];
-      return next;
-    });
   };
 
   const handleClearSelection = (matchId: string) => {
@@ -608,87 +602,34 @@ function PredictorApp() {
       ...prev,
       [matchId]: '' // Empty string means "clear prediction"
     }));
-    // Also clear toss predictions
-    setPendingToss(prev => {
-      const next = { ...prev };
-      delete next[matchId];
-      return next;
-    });
-  };
-
-  const handleTossPrediction = (matchId: string, field: 'tossWinner' | 'battingChoice', value: string) => {
-    if (!user) return;
-    const match = matches.find(m => m.id === matchId);
-    if (!match) return;
-
-    const isLocked = isAfter(new Date(), parseISO(match.date)) || match.status !== 'UPCOMING';
-    if (isLocked && !(isAdminUser && showAdmin)) return;
-
-    setPendingToss(prev => {
-      const existing = prev[matchId] || {};
-      const currentVal = existing[field];
-
-      // Toggle off if same value clicked
-      if (currentVal === value) {
-        const next = { ...prev, [matchId]: { ...existing } };
-        delete next[matchId][field];
-        if (Object.keys(next[matchId]).length === 0) delete next[matchId];
-        return next;
-      }
-
-      return {
-        ...prev,
-        [matchId]: { ...existing, [field]: value }
-      };
-    });
   };
 
   const saveAllPredictions = async () => {
-    const hasPendingWinner = Object.keys(pendingPredictions).length > 0;
-    const hasPendingToss = Object.keys(pendingToss).length > 0;
-    if (!user || (!hasPendingWinner && !hasPendingToss)) return;
+    if (!user || Object.keys(pendingPredictions).length === 0) return;
 
     const targetUserId = selectedUserForAdmin?.uid || user.uid;
     setSavingPredictions(true);
     try {
-      // Collect all match IDs that need saving (winner or toss)
-      const allMatchIds = new Set([
-        ...Object.keys(pendingPredictions),
-        ...Object.keys(pendingToss)
-      ]);
-
       await runTransaction(db, async (transaction) => {
-        for (const matchId of allMatchIds) {
+        for (const matchId of Object.keys(pendingPredictions)) {
           const predictionId = `${targetUserId}_${matchId}`;
           const predictionRef = doc(db, 'predictions', predictionId);
           const team = pendingPredictions[matchId];
-          const toss = pendingToss[matchId];
 
           if (team === '') {
             transaction.delete(predictionRef);
           } else {
-            const predData: Record<string, any> = {
+            transaction.set(predictionRef, {
               id: predictionId,
               userId: targetUserId,
               matchId,
+              predictedWinner: team,
               timestamp: new Date().toISOString()
-            };
-            // Include winner prediction if set
-            if (team !== undefined) {
-              predData.predictedWinner = team;
-            }
-            // Include toss predictions if set
-            if (toss?.tossWinner) {
-              predData.tossWinner = toss.tossWinner;
-            }
-            if (toss?.battingChoice) {
-              predData.battingChoice = toss.battingChoice;
-            }
-            transaction.set(predictionRef, predData, { merge: true });
+            }, { merge: true });
           }
         }
       });
-      
+
       // Track writes/deletes
       const writeCount = Object.values(pendingPredictions).filter(t => t !== '').length;
       const deleteCount = Object.values(pendingPredictions).filter(t => t === '').length;
@@ -696,7 +637,6 @@ function PredictorApp() {
       if (deleteCount > 0) trackDeletes(deleteCount);
 
       setPendingPredictions({});
-      setPendingToss({});
       if (selectedUserForAdmin) {
         const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
         trackReads(snap.docs.length || 1);
@@ -1696,14 +1636,10 @@ function PredictorApp() {
     : currentPredictions.find(p => p.matchId === match.id);
   
                 const effectiveStatus = getEffectiveStatus(match);
-                const isPending = pendingPredictions[match.id] !== undefined || pendingToss[match.id] !== undefined;
+                const isPending = pendingPredictions[match.id] !== undefined;
                 const isLocked = isAfter(new Date(), parseISO(match.date)) || effectiveStatus !== 'UPCOMING';
 
-                // Toss prediction state
                 const savedFullPred = currentPredictions.find(p => p.matchId === match.id);
-                const tossPending = pendingToss[match.id];
-                const currentTossWinner = tossPending?.tossWinner ?? savedFullPred?.tossWinner ?? '';
-                const currentBattingChoice = tossPending?.battingChoice ?? savedFullPred?.battingChoice ?? '';
                 const hasPredicted = !!prediction;
                 
                 // Use live vote counts computed from predictions (source of truth)
@@ -1995,70 +1931,6 @@ function PredictorApp() {
                             )}
                           </div>
 
-                          {/* Toss Prediction (Optional Bonus) */}
-                          {ENABLE_TOSS_PREDICTIONS && (
-                            <div className="pt-3 border-t border-white/5">
-                              <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2">Toss Prediction <span className="text-gray-600 normal-case">(optional)</span></p>
-                              <div className="grid grid-cols-2 gap-4">
-                                {/* Toss Winner */}
-                                <div>
-                                  <p className="text-[8px] font-bold uppercase text-gray-600 tracking-widest mb-1.5">Who wins the toss?</p>
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'tossWinner', match.homeTeam)}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentTossWinner === match.homeTeam
-                                          ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      {match.homeTeam}
-                                    </button>
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'tossWinner', match.awayTeam)}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentTossWinner === match.awayTeam
-                                          ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      {match.awayTeam}
-                                    </button>
-                                  </div>
-                                </div>
-                                {/* Bat / Bowl Choice */}
-                                <div>
-                                  <p className="text-[8px] font-bold uppercase text-gray-600 tracking-widest mb-1.5">Toss winner elects to</p>
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'battingChoice', 'BAT')}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentBattingChoice === 'BAT'
-                                          ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      Bat 1st
-                                    </button>
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'battingChoice', 'BOWL')}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentBattingChoice === 'BOWL'
-                                          ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      Bowl 1st
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                           </>
                         ) : (
                           <div className="bg-white/5 rounded-xl p-4 border border-white/10">
@@ -2098,15 +1970,6 @@ function PredictorApp() {
                                     </>
                                   );
                                 })()}
-                                {/* Show toss prediction result */}
-                                {savedFullPred?.tossWinner && (
-                                  <div className="mt-2 flex items-center gap-3 text-[10px]">
-                                    <span className="text-gray-500">Toss pick: <span className={cn("font-bold", savedFullPred.tossWinner === match.tossWinner ? "text-green-400" : "text-red-400")}>{savedFullPred.tossWinner}</span></span>
-                                    {savedFullPred.battingChoice && (
-                                      <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
-                                    )}
-                                  </div>
-                                )}
                                 {/* Admin: Edit prediction on completed match */}
                                 {isAdminUser && showAdmin && (
                                   <div className="mt-3 pt-3 border-t border-white/10 w-full">
@@ -2159,15 +2022,6 @@ function PredictorApp() {
                                     </>
                                   );
                                 })()}
-                                {/* Show toss prediction on locked matches */}
-                                {savedFullPred?.tossWinner && (
-                                  <div className="mt-1 flex items-center gap-3 text-[10px]">
-                                    <span className="text-gray-500">Toss pick: <span className={cn("font-bold", match.tossWinner ? (savedFullPred.tossWinner === match.tossWinner ? "text-green-400" : "text-red-400") : "text-cyan-400")}>{savedFullPred.tossWinner}</span></span>
-                                    {savedFullPred.battingChoice && (
-                                      <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
-                                    )}
-                                  </div>
-                                )}
                               </div>
                             )}
                           </div>
@@ -2399,14 +2253,14 @@ function PredictorApp() {
       )}
 
       {/* Floating Save Button */}
-      {(Object.keys(pendingPredictions).length > 0 || Object.keys(pendingToss).length > 0) && (
+      {Object.keys(pendingPredictions).length > 0 && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-3"
         >
           <button
-            onClick={() => { setPendingPredictions({}); setPendingToss({}); }}
+            onClick={() => setPendingPredictions({})}
             className="px-4 py-2 rounded-xl bg-white/10 text-gray-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10"
           >
             Clear All Changes
@@ -2425,7 +2279,7 @@ function PredictorApp() {
               <Save className="w-5 h-5" />
             )}
             <span className="uppercase tracking-widest text-sm font-black">
-              {savingPredictions ? 'Saving...' : `Save ${Object.keys(pendingPredictions).length + (ENABLE_TOSS_PREDICTIONS ? Object.keys(pendingToss).length : 0)} Changes`}
+              {savingPredictions ? 'Saving...' : `Save ${Object.keys(pendingPredictions).length} Changes`}
             </span>
           </button>
         </motion.div>

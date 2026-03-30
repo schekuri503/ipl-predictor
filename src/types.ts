@@ -46,8 +46,6 @@ export interface Prediction {
   userId: string;
   matchId: string;
   predictedWinner: string; // team code OR DynamicPrediction
-  tossWinner?: string;       // which team wins toss
-  battingChoice?: 'BAT' | 'BOWL'; // toss winner elects to bat or bowl
   timestamp: string;
 }
 
