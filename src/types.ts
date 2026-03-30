@@ -35,13 +35,17 @@ export interface UserProfile {
   role?: 'admin' | 'user';
 }
 
+// Prediction types for dynamic winner resolution
+// TOSS_WINNER: resolves to the team that won the toss
+// BATTING_FIRST: resolves to the team that batted first
+// BATTING_SECOND: resolves to the team that batted second (fielded first)
+export type DynamicPrediction = 'TOSS_WINNER' | 'BATTING_FIRST' | 'BATTING_SECOND';
+
 export interface Prediction {
   id: string; // userId_matchId
   userId: string;
   matchId: string;
-  predictedWinner: string;
-  tossWinner?: string;       // which team wins toss
-  battingChoice?: 'BAT' | 'BOWL'; // toss winner elects to bat or bowl
+  predictedWinner: string; // team code OR DynamicPrediction
   timestamp: string;
 }
 
