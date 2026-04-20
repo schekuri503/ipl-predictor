@@ -22,15 +22,19 @@ import {
   where,
   writeBatch,
   runTransaction,
-  limit
+  limit,
+  deleteField
 } from 'firebase/firestore';
 import { 
   Trophy, 
   User as UserIcon, 
+  Users,
   LogOut, 
   Calendar, 
   ChevronRight, 
   ChevronLeft,
+  ChevronDown,
+  ChevronUp,
   AlertCircle,
   CheckCircle2,
   XCircle,
@@ -48,22 +52,23 @@ import {
   Activity,
   BarChart3,
   RotateCcw,
-  Zap
+  Zap,
+  Flame
 } from 'lucide-react';
-import { format, isAfter, parseISO, isToday } from 'date-fns';
+import { format, isAfter, isBefore, parseISO, isToday, subHours, subMinutes } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 import { auth, db, signInWithGoogle, logout } from './firebase';
 import { Match, UserProfile, Prediction, MatchStatus, MatchType } from './types';
-import { TEAMS, INITIAL_MATCHES, TOTAL_SKIPS_ALLOWED, APP_LOGO } from './constants';
+import { TEAMS, INITIAL_MATCHES, TOTAL_SKIPS_ALLOWED, APP_LOGO, WIN_MESSAGES, LOSS_MESSAGES, ABANDONED_MESSAGES } from './constants';
 import { fetchUpdatedSchedule, fetchOfficialResult, fetchLiveMatchData } from './services/geminiService';
 import { trackReads, trackWrites, trackDeletes, trackGeminiCall, getUsageStats, type FirebaseUsageStats } from './firebaseTracker';
 
 // --- Feature Flags ---
-const ENABLE_TOSS_PREDICTIONS = false;
+const ENABLE_TOSS_PREDICTIONS = true;
 
 // --- Error Handling ---
 
@@ -115,7 +120,20 @@ function handleFirestoreError(error: unknown, operationType: OperationType, path
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  // We don't throw here to avoid crashing the app, but we log it.
+  
+  // Write to system_logs if user is authenticated
+  if (auth.currentUser) {
+    try {
+      setDoc(doc(collection(db, 'system_logs')), {
+        ...errInfo,
+        timestamp: new Date().toISOString(),
+        userAgent: navigator.userAgent
+      }).catch(e => console.error("Failed to log error to Firestore:", e));
+    } catch (e) {
+      console.error("Failed to log error to Firestore:", e);
+    }
+  }
+
   return errInfo;
 }
 
@@ -178,7 +196,8 @@ const MatchBadge = ({ status }: { status: MatchStatus }) => {
   const styles = {
     UPCOMING: "bg-blue-500/20 text-blue-400 border-blue-500/30",
     LIVE: "bg-red-600 text-white border-red-600/30 is-live shadow-lg shadow-red-500/20",
-    COMPLETED: "bg-gray-500/20 text-gray-400 border-gray-500/30"
+    COMPLETED: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+    ABANDONED: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
   };
 
   return (
@@ -205,6 +224,14 @@ const TeamLogo = ({ teamCode, size = "md" }: { teamCode: string, size?: "sm" | "
 
 // --- Main App ---
 
+const Atmosphere = () => (
+  <div className="atmosphere-bg">
+    <div className="atmosphere-blob w-[500px] h-[500px] bg-orange-500/20 -top-20 -left-20" />
+    <div className="atmosphere-blob w-[400px] h-[400px] bg-blue-500/10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" style={{ animationDelay: '-5s' }} />
+    <div className="atmosphere-blob w-[600px] h-[600px] bg-purple-500/10 bottom-0 right-0" style={{ animationDelay: '-10s' }} />
+  </div>
+);
+
 export default function App() {
   return (
     <ErrorBoundary>
@@ -220,7 +247,7 @@ function PredictorApp() {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'matches' | 'leaderboard'>('matches');
+  const [activeTab, setActiveTab] = useState<'matches' | 'leaderboard' | 'audit'>('matches');
   const [matchFilter, setMatchFilter] = useState<'live-upcoming' | 'completed'>('live-upcoming');
   const [pendingPredictions, setPendingPredictions] = useState<Record<string, string>>({});
   const [savingPredictions, setSavingPredictions] = useState(false);
@@ -229,6 +256,59 @@ function PredictorApp() {
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [recalculatingVotes, setRecalculatingVotes] = useState(false);
   const [selectedUserForAdmin, setSelectedUserForAdmin] = useState<UserProfile | null>(null);
+  const [expandedUserPoints, setExpandedUserPoints] = useState<string | null>(null);
+  const [userPredictionsData, setUserPredictionsData] = useState<Record<string, Prediction[]>>({});
+  const [fetchingUserPreds, setFetchingUserPreds] = useState<string | null>(null);
+
+  // Fetch predictions for a specific user for breakdown
+  const fetchUserPredictionsForBreakdown = async (userId: string) => {
+    if (userPredictionsData[userId]) return;
+    setFetchingUserPreds(userId);
+    try {
+      const q = query(collection(db, 'predictions'), where('userId', '==', userId));
+      const snap = await getDocs(q);
+      const preds = snap.docs.map(d => d.data() as Prediction);
+      
+      // Identify missing matches
+      const matchIds = Array.from(new Set(preds.map(p => p.matchId)));
+      const missingMatchIds = matchIds.filter(id => !matches.find(m => m.id === id));
+      
+      if (missingMatchIds.length > 0) {
+        // Fetch missing matches in chunks of 30
+        const missingMatches: Match[] = [];
+        for (let i = 0; i < missingMatchIds.length; i += 30) {
+          const chunk = missingMatchIds.slice(i, i + 30);
+          const mSnap = await getDocs(query(collection(db, 'matches'), where('id', 'in', chunk)));
+          trackReads(mSnap.docs.length || 1);
+          mSnap.docs.forEach(d => {
+            missingMatches.push({
+              id: d.id,
+              ...d.data(),
+              votes: d.data().votes || { [d.data().homeTeam]: d.data().homeVotes || 0, [d.data().awayTeam]: d.data().awayVotes || 0 },
+              homeVotes: d.data().homeVotes || 0,
+              awayVotes: d.data().awayVotes || 0
+            } as Match);
+          });
+        }
+        
+        if (missingMatches.length > 0) {
+          setMatches(prev => {
+            const combined = [...prev, ...missingMatches];
+            const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
+            return unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          });
+        }
+      }
+      
+      setUserPredictionsData(prev => ({ ...prev, [userId]: preds }));
+      trackReads(snap.docs.length);
+    } catch (error) {
+      console.error("Error fetching user predictions:", error);
+      showToast("Failed to load points breakdown", "error");
+    } finally {
+      setFetchingUserPreds(null);
+    }
+  };
   const [adminPredictions, setAdminPredictions] = useState<Prediction[]>([]);
   const [loadingAdminPredictions, setLoadingAdminPredictions] = useState(false);
 
@@ -238,24 +318,185 @@ function PredictorApp() {
   };
   const [syncingSchedule, setSyncingSchedule] = useState(false);
   const [showVoters, setShowVoters] = useState<{ matchId: string, teamCode: string } | null>(null);
+  const [showNonVoters, setShowNonVoters] = useState<string | null>(null); // matchId
+  const [nonVoters, setNonVoters] = useState<UserProfile[]>([]);
+  const [loadingNonVoters, setLoadingNonVoters] = useState(false);
   const [voters, setVoters] = useState<UserProfile[]>([]);
   const [loadingVoters, setLoadingVoters] = useState(false);
   const [editingMatch, setEditingMatch] = useState<Match | null>(null);
   const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [signInError, setSignInError] = useState<string | null>(null);
-  const [liveVoteCounts, setLiveVoteCounts] = useState<Record<string, Record<string, number>>>({});
-  const [pendingToss, setPendingToss] = useState<Record<string, { tossWinner?: string; battingChoice?: 'BAT' | 'BOWL' }>>({});
   const [firebaseUsage, setFirebaseUsage] = useState<FirebaseUsageStats>(getUsageStats());
   const [autoUpdating, setAutoUpdating] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+  const [systemLogs, setSystemLogs] = useState<any[]>([]);
+  const [loadingSystemLogs, setLoadingSystemLogs] = useState(false);
   const lastFetchRef = useRef<Record<string, number>>({});
   const [tick, setTick] = useState(0); // triggers re-render for effective match status
+  const [confirmation, setConfirmation] = useState<{
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    confirmText?: string;
+    type?: 'danger' | 'info';
+  } | null>(null);
+
+  const [sendingReminders, setSendingReminders] = useState(false);
+
+  const handleSendReminders = async () => {
+    if (!isAdminUser) return;
+    setSendingReminders(true);
+    try {
+      const now = new Date();
+      const upcomingMatches = matches.filter(m => {
+        const matchDate = parseISO(m.date);
+        // Match is starting within the next 2 hours and hasn't started yet
+        return m.status === 'UPCOMING' && isAfter(matchDate, now) && isBefore(now, matchDate) && isAfter(now, subHours(matchDate, 2));
+      });
+
+      if (upcomingMatches.length === 0) {
+        showToast("No matches starting soon to send reminders for.");
+        return;
+      }
+
+      // Fetch all users and predictions to find who hasn't voted
+      const [usersSnap, predsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(collection(db, 'predictions'))
+      ]);
+      
+      const allUsers = usersSnap.docs.map(d => d.data() as UserProfile);
+      const allPreds = predsSnap.docs.map(d => d.data() as Prediction);
+      
+      const mailBatch = writeBatch(db);
+      let count = 0;
+
+      for (const match of upcomingMatches) {
+        const matchPreds = allPreds.filter(p => p.matchId === match.id);
+        const nonVoters = allUsers.filter(u => !matchPreds.find(p => p.userId === u.uid) && u.email);
+
+        const matchDate = parseISO(match.date);
+        const diffMinutes = (matchDate.getTime() - now.getTime()) / (1000 * 60);
+        let timeLabel = "soon";
+        if (diffMinutes <= 10) timeLabel = "in 5 minutes";
+        else if (diffMinutes <= 30) timeLabel = "in 20 minutes";
+        else if (diffMinutes <= 70) timeLabel = "in 1 hour";
+
+        for (const u of nonVoters) {
+          const mailRef = doc(collection(db, 'mail'));
+          mailBatch.set(mailRef, {
+            to: u.email,
+            message: {
+              subject: `🏏 IPL Prediction Reminder: ${match.homeTeam} vs ${match.awayTeam}`,
+              html: `
+                <div style="font-family: sans-serif; padding: 20px; color: #1a1d23; max-width: 600px; margin: 0 auto; border: 1px solid #eee; border-radius: 12px;">
+                  <div style="text-align: center; margin-bottom: 20px;">
+                    <img src="${APP_LOGO}" alt="IPL ADDA" style="width: 80px; height: 80px;" />
+                  </div>
+                  <h2 style="color: #F27D26; text-align: center; font-size: 24px;">Don't miss out!</h2>
+                  <p style="font-size: 16px; line-height: 1.6;">The match between <b>${match.homeTeam}</b> and <b>${match.awayTeam}</b> starts <b>${timeLabel}</b>.</p>
+                  <p style="font-size: 16px; line-height: 1.6;">You haven't placed your prediction yet. Head over to the app to lock it in and earn points!</p>
+                  <div style="text-align: center; margin-top: 30px;">
+                    <a href="${window.location.origin}" style="display: inline-block; padding: 14px 30px; background-color: #F27D26; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 16px; box-shadow: 0 4px 12px rgba(242,125,38,0.3);">Predict Now</a>
+                  </div>
+                  <p style="font-size: 12px; color: #999; text-align: center; margin-top: 40px; border-top: 1px solid #eee; pt: 20px;">
+                    IPL ADDA - Fan-made Prediction App
+                  </p>
+                </div>
+              `
+            }
+          });
+          count++;
+        }
+      }
+
+      if (count > 0) {
+        await mailBatch.commit();
+        showToast(`Sent ${count} reminders to the mail queue!`);
+      } else {
+        showToast("Everyone has already voted!");
+      }
+    } catch (error) {
+      console.error("Error sending reminders:", error);
+      showToast("Failed to send reminders", "error");
+    } finally {
+      setSendingReminders(false);
+    }
+  };
+
+  const fetchNonVoters = async (matchId: string) => {
+    setLoadingNonVoters(true);
+    setShowNonVoters(matchId);
+    try {
+      const [usersSnap, predsSnap] = await Promise.all([
+        getDocs(collection(db, 'users')),
+        getDocs(query(collection(db, 'predictions'), where('matchId', '==', matchId)))
+      ]);
+      
+      const allUsers = usersSnap.docs.map(d => d.data() as UserProfile);
+      const matchPreds = predsSnap.docs.map(d => d.data() as Prediction);
+      
+      const nonVoterList = allUsers.filter(u => !matchPreds.find(p => p.userId === u.uid));
+      setNonVoters(nonVoterList);
+      trackReads(usersSnap.docs.length + predsSnap.docs.length);
+    } catch (error) {
+      console.error("Error fetching non-voters:", error);
+      showToast("Failed to load non-voters", "error");
+    } finally {
+      setLoadingNonVoters(false);
+    }
+  };
+
+  const handleSendTargetedReminders = async (match: Match, users: UserProfile[]) => {
+    if (!isAdminUser || users.length === 0) return;
+    setSendingReminders(true);
+    try {
+      const mailBatch = writeBatch(db);
+      let count = 0;
+      
+      for (const u of users) {
+        if (!u.email) continue;
+        const mailRef = doc(collection(db, 'mail'));
+        mailBatch.set(mailRef, {
+          to: u.email,
+          message: {
+            subject: `🏏 IPL Prediction Reminder: ${match.homeTeam} vs ${match.awayTeam}`,
+            html: `
+              <div style="font-family: sans-serif; padding: 20px; color: #1a1d23;">
+                <h2 style="color: #F27D26;">Don't miss out!</h2>
+                <p>The match between <b>${match.homeTeam}</b> and <b>${match.awayTeam}</b> starts soon.</p>
+                <p>You haven't placed your prediction yet. Head over to the app to lock it in and earn points!</p>
+                <a href="${window.location.origin}" style="display: inline-block; padding: 12px 24px; background-color: #F27D26; color: white; text-decoration: none; border-radius: 8px; font-weight: bold; margin-top: 20px;">Predict Now</a>
+              </div>
+            `
+          }
+        });
+        count++;
+      }
+      
+      if (count > 0) {
+        await mailBatch.commit();
+        trackWrites(count);
+        showToast(`Sent ${count} reminders successfully!`);
+      } else {
+        showToast("No users with valid emails found.");
+      }
+    } catch (error) {
+      console.error("Error sending reminders:", error);
+      showToast("Failed to send reminders", "error");
+    } finally {
+      setSendingReminders(false);
+    }
+  };
 
   const isAdminUser = profile?.role === 'admin' || user?.email === 's.chaitanya.503@gmail.com';
 
   // Compute effective match status based on current time (client-side, no Firebase reads)
   const getEffectiveStatus = useCallback((match: Match): MatchStatus => {
     if (match.status === 'COMPLETED') return 'COMPLETED';
+    if (match.status === 'ABANDONED') return 'ABANDONED';
     const now = new Date();
     const matchDate = parseISO(match.date);
     if (isAfter(now, matchDate)) return 'LIVE';
@@ -274,16 +515,16 @@ function PredictorApp() {
     // Cache: skip Firestore fetch if recent enough
     const cacheKey = matchFilter;
     const lastFetch = lastFetchRef.current[cacheKey] || 0;
-    const maxAge = matchFilter === 'completed' ? 24 * 60 * 60 * 1000 : 5 * 60 * 1000; // 24h for completed, 5min for live/upcoming
+    const maxAge = matchFilter === 'completed' ? 10 * 60 * 1000 : 5 * 60 * 1000; // 10min for completed, 5min for live/upcoming
 
     if (!forceRefresh && (Date.now() - lastFetch) < maxAge) {
-      const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
+      const statusFilter = matchFilter === 'completed' ? ['COMPLETED', 'ABANDONED'] : ['UPCOMING', 'LIVE'];
       const cached = matches.filter(m => statusFilter.includes(m.status));
       if (cached.length > 0) return cached;
     }
 
     try {
-      const statusFilter = matchFilter === 'completed' ? ['COMPLETED'] : ['UPCOMING', 'LIVE'];
+      const statusFilter = matchFilter === 'completed' ? ['COMPLETED', 'ABANDONED'] : ['UPCOMING', 'LIVE'];
       const q = query(
         collection(db, 'matches'),
         where('status', 'in', statusFilter),
@@ -295,6 +536,7 @@ function PredictorApp() {
       const matchData = snap.docs.map(d => ({
         id: d.id,
         ...d.data(),
+        votes: d.data().votes || { [d.data().homeTeam]: d.data().homeVotes || 0, [d.data().awayTeam]: d.data().awayVotes || 0 },
         homeVotes: d.data().homeVotes || 0,
         awayVotes: d.data().awayVotes || 0
       } as Match));
@@ -328,36 +570,6 @@ function PredictorApp() {
     }
   };
 
-  // Fetch vote counts from predictions collection (source of truth)
-  const fetchVoteCounts = async (matchList?: Match[]) => {
-    const targetMatches = matchList || matches;
-    if (targetMatches.length === 0) return;
-    try {
-      const matchIds = targetMatches.map(m => m.id);
-      const counts: Record<string, Record<string, number>> = {};
-
-      // Firestore 'in' queries support up to 30 items
-      for (let i = 0; i < matchIds.length; i += 30) {
-        const chunk = matchIds.slice(i, i + 30);
-        const q = query(
-          collection(db, 'predictions'),
-          where('matchId', 'in', chunk)
-        );
-        const snap = await getDocs(q);
-        trackReads(snap.docs.length || 1);
-        snap.docs.forEach(d => {
-          const pred = d.data() as Prediction;
-          if (!counts[pred.matchId]) counts[pred.matchId] = {};
-          counts[pred.matchId][pred.predictedWinner] = (counts[pred.matchId][pred.predictedWinner] || 0) + 1;
-        });
-      }
-
-      setLiveVoteCounts(counts);
-      refreshUsageStats();
-    } catch (error) {
-      console.error('Error fetching vote counts:', error);
-    }
-  };
 
   // Fetch leaderboard on demand
   const fetchLeaderboard = async () => {
@@ -376,7 +588,6 @@ function PredictorApp() {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     const [freshMatches] = await Promise.all([fetchMatches(true), fetchUserPredictions()]);
-    await fetchVoteCounts(freshMatches);
     if (activeTab === 'leaderboard') await fetchLeaderboard();
     refreshUsageStats();
     setIsRefreshing(false);
@@ -397,18 +608,68 @@ function PredictorApp() {
     return () => unsubAuth();
   }, []);
 
-  // 2. Fetch matches + vote counts on login and when filter changes
+  // 2. Real-time Match Listener (Replaces Effect #2 and periodic polling)
   useEffect(() => {
     if (!user) return;
-    const load = async () => {
-      const freshMatches = await fetchMatches();
-      await fetchVoteCounts(freshMatches);
-      if (loading) setLoading(false);
-    };
-    load();
+    
+    // We only set loading true if it's the very first load
+    if (matches.length === 0) setLoading(true);
+
+    const statusFilter = matchFilter === 'completed' ? ['COMPLETED', 'ABANDONED'] : ['UPCOMING', 'LIVE'];
+    const q = query(
+      collection(db, 'matches'),
+      where('status', 'in', statusFilter),
+      orderBy('date', matchFilter === 'completed' ? 'desc' : 'asc'),
+      limit(matchFilter === 'completed' ? 40 : 30)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      // trackReads(snap.docs.length || 1); // onSnapshot reads are billed differently, but tracking helps monitor
+      const matchData = snap.docs.map(d => ({
+        id: d.id,
+        ...d.data(),
+        votes: d.data().votes || { [d.data().homeTeam]: d.data().homeVotes || 0, [d.data().awayTeam]: d.data().awayVotes || 0 },
+        homeVotes: d.data().homeVotes || 0,
+        awayVotes: d.data().awayVotes || 0
+      } as Match));
+
+      setMatches(prev => {
+        const otherMatches = prev.filter(m => !statusFilter.includes(m.status));
+        const combined = [...otherMatches, ...matchData];
+        const unique = Array.from(new Map(combined.map(m => [m.id, m])).values());
+        return unique.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      });
+      
+      setLoading(false);
+      refreshUsageStats();
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'matches');
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [user, matchFilter]);
 
   // 3. User Profile (real-time for points updates) & Predictions (one-time fetch on login)
+  useEffect(() => {
+    if (isAdminUser && user) {
+      const fixMatch = async () => {
+        const matchId = 'ipl_2026_12';
+        const matchRef = doc(db, 'matches', matchId);
+        const matchSnap = await getDoc(matchRef);
+        if (matchSnap.exists() && matchSnap.data().status !== 'ABANDONED') {
+          await updateDoc(matchRef, {
+            status: 'ABANDONED',
+            winner: 'ABANDONED',
+            summary: 'Match abandoned due to rain.'
+          });
+          showToast("Fixed KKR vs PBKS match status. Please recalculate points.");
+        }
+      };
+      fixMatch();
+    }
+  }, [isAdminUser, user]);
+
   useEffect(() => {
     if (!user) return;
 
@@ -433,10 +694,17 @@ function PredictorApp() {
       handleFirestoreError(error, OperationType.GET, `users/${user.uid}`);
     });
 
-    // Fetch predictions once on login
-    fetchUserPredictions();
+    // Predictions also use onSnapshot for real-time point resolution
+    const unsubPreds = onSnapshot(query(collection(db, 'predictions'), where('userId', '==', user.uid)), (snap) => {
+      setPredictions(snap.docs.map(d => d.data() as Prediction));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'predictions');
+    });
 
-    return () => unsubProfile();
+    return () => {
+      unsubProfile();
+      unsubPreds();
+    };
   }, [user]);
 
   // Completed matches are loaded via effect #2 which re-runs when matchFilter changes
@@ -514,9 +782,90 @@ function PredictorApp() {
 
   // Re-render every 2 minutes to update effective match statuses (UPCOMING→LIVE based on time)
   useEffect(() => {
-    const interval = setInterval(() => setTick(t => t + 1), 120000);
+    const interval = setInterval(() => setTick(t => t + 1), 5 * 60000); // Check every 5 minutes
     return () => clearInterval(interval);
   }, []);
+
+  // Fetch audit logs for admin
+  const fetchAuditLogs = async () => {
+    if (!isAdminUser) return;
+    setLoadingAudit(true);
+    try {
+      // 1. Fetch latest 100 predictions
+      const predsSnap = await getDocs(query(collection(db, 'predictions'), orderBy('timestamp', 'desc'), limit(100)));
+      trackReads(predsSnap.docs.length || 1);
+      
+      if (predsSnap.empty) {
+        setAuditLogs([]);
+        return;
+      }
+
+      const predictions = predsSnap.docs.map(d => d.data() as Prediction);
+      
+      // 2. Extract unique user IDs and match IDs
+      const userIds = Array.from(new Set(predictions.map(p => p.userId)));
+      const matchIds = Array.from(new Set(predictions.map(p => p.matchId)));
+
+      // 3. Fetch only the required users (in chunks of 30 for Firestore 'in' query)
+      const usersMap = new Map<string, UserProfile>();
+      for (let i = 0; i < userIds.length; i += 30) {
+        const chunk = userIds.slice(i, i + 30);
+        const uSnap = await getDocs(query(collection(db, 'users'), where('uid', 'in', chunk)));
+        trackReads(uSnap.docs.length || 1);
+        uSnap.docs.forEach(d => usersMap.set(d.id, d.data() as UserProfile));
+      }
+
+      // 4. Fetch only the required matches
+      const matchesMap = new Map<string, Match>();
+      for (let i = 0; i < matchIds.length; i += 30) {
+        const chunk = matchIds.slice(i, i + 30);
+        const mSnap = await getDocs(query(collection(db, 'matches'), where('id', 'in', chunk)));
+        trackReads(mSnap.docs.length || 1);
+        mSnap.docs.forEach(d => matchesMap.set(d.id, d.data() as Match));
+      }
+      
+      const logs = predictions.map(pred => {
+        const userProfile = usersMap.get(pred.userId);
+        const match = matchesMap.get(pred.matchId);
+        return {
+          ...pred,
+          userName: userProfile?.displayName || 'Unknown',
+          userPhoto: userProfile?.photoURL,
+          matchDesc: match ? `${match.homeTeam} vs ${match.awayTeam}` : 'Unknown Match'
+        };
+      });
+      
+      setAuditLogs(logs);
+    } catch (error) {
+      console.error('Error fetching audit logs:', error);
+      showToast("Failed to fetch audit logs", "error");
+    } finally {
+      setLoadingAudit(false);
+    }
+  };
+
+  const fetchSystemLogs = async () => {
+    if (!isAdminUser) return;
+    setLoadingSystemLogs(true);
+    try {
+      const q = query(collection(db, 'system_logs'), orderBy('timestamp', 'desc'), limit(50));
+      const snap = await getDocs(q);
+      setSystemLogs(snap.docs.map(d => d.data()));
+      trackReads(snap.docs.length || 1);
+    } catch (error) {
+      console.error("Error fetching system logs:", error);
+      showToast("Failed to fetch system logs", "error");
+    } finally {
+      setLoadingSystemLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'audit') {
+      fetchAuditLogs();
+      fetchSystemLogs();
+    }
+  }, [activeTab, isAdminUser]);
 
   // Refresh firebase usage stats periodically
   useEffect(() => {
@@ -559,7 +908,7 @@ function PredictorApp() {
     // Check if match has started (Admins can bypass if showAdmin is enabled)
     const isLocked = isAfter(new Date(), parseISO(match.date)) || match.status !== 'UPCOMING';
     if (isLocked && !(isAdminUser && showAdmin)) {
-      alert("Match has already started or completed. Predictions are locked.");
+      showToast("Match has already started or completed. Predictions are locked.", "error");
       return;
     }
 
@@ -594,11 +943,6 @@ function PredictorApp() {
       delete next[matchId];
       return next;
     });
-    setPendingToss(prev => {
-      const next = { ...prev };
-      delete next[matchId];
-      return next;
-    });
   };
 
   const handleClearSelection = (matchId: string) => {
@@ -608,95 +952,77 @@ function PredictorApp() {
       ...prev,
       [matchId]: '' // Empty string means "clear prediction"
     }));
-    // Also clear toss predictions
-    setPendingToss(prev => {
-      const next = { ...prev };
-      delete next[matchId];
-      return next;
-    });
-  };
-
-  const handleTossPrediction = (matchId: string, field: 'tossWinner' | 'battingChoice', value: string) => {
-    if (!user) return;
-    const match = matches.find(m => m.id === matchId);
-    if (!match) return;
-
-    const isLocked = isAfter(new Date(), parseISO(match.date)) || match.status !== 'UPCOMING';
-    if (isLocked && !(isAdminUser && showAdmin)) return;
-
-    setPendingToss(prev => {
-      const existing = prev[matchId] || {};
-      const currentVal = existing[field];
-
-      // Toggle off if same value clicked
-      if (currentVal === value) {
-        const next = { ...prev, [matchId]: { ...existing } };
-        delete next[matchId][field];
-        if (Object.keys(next[matchId]).length === 0) delete next[matchId];
-        return next;
-      }
-
-      return {
-        ...prev,
-        [matchId]: { ...existing, [field]: value }
-      };
-    });
   };
 
   const saveAllPredictions = async () => {
-    const hasPendingWinner = Object.keys(pendingPredictions).length > 0;
-    const hasPendingToss = Object.keys(pendingToss).length > 0;
-    if (!user || (!hasPendingWinner && !hasPendingToss)) return;
+    if (!user || Object.keys(pendingPredictions).length === 0) return;
 
     const targetUserId = selectedUserForAdmin?.uid || user.uid;
     setSavingPredictions(true);
     try {
-      // Collect all match IDs that need saving (winner or toss)
-      const allMatchIds = new Set([
-        ...Object.keys(pendingPredictions),
-        ...Object.keys(pendingToss)
-      ]);
-
       await runTransaction(db, async (transaction) => {
-        for (const matchId of allMatchIds) {
+        for (const matchId of Object.keys(pendingPredictions)) {
           const predictionId = `${targetUserId}_${matchId}`;
           const predictionRef = doc(db, 'predictions', predictionId);
-          const team = pendingPredictions[matchId];
-          const toss = pendingToss[matchId];
+          const matchRef = doc(db, 'matches', matchId);
+          
+          // Get current prediction and match data
+          const [predSnap, matchSnap] = await Promise.all([
+            transaction.get(predictionRef),
+            transaction.get(matchRef)
+          ]);
+          
+          const oldPred = predSnap.exists() ? predSnap.data() as Prediction : null;
+          const matchData = matchSnap.exists() ? matchSnap.data() as Match : null;
+          const newTeam = pendingPredictions[matchId];
 
-          if (team === '') {
+          // Initialize or update votes map
+          const votes = { ...(matchData?.votes || {}) };
+          
+          // Decrement old vote if it exists
+          if (oldPred && votes[oldPred.predictedWinner]) {
+            votes[oldPred.predictedWinner] = Math.max(0, votes[oldPred.predictedWinner] - 1);
+          }
+          
+          if (newTeam === '') {
+            // Deleting prediction
             transaction.delete(predictionRef);
           } else {
-            const predData: Record<string, any> = {
+            // Increment new vote
+            votes[newTeam] = (votes[newTeam] || 0) + 1;
+            
+            // Determine what options were available to the user at this time
+            const options = [matchData?.homeTeam, matchData?.awayTeam].filter(Boolean) as string[];
+            if (ENABLE_TOSS_PREDICTIONS) {
+              options.push('TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND');
+            }
+
+            transaction.set(predictionRef, {
               id: predictionId,
               userId: targetUserId,
               matchId,
-              timestamp: new Date().toISOString()
-            };
-            // Include winner prediction if set
-            if (team !== undefined) {
-              predData.predictedWinner = team;
-            }
-            // Include toss predictions if set
-            if (toss?.tossWinner) {
-              predData.tossWinner = toss.tossWinner;
-            }
-            if (toss?.battingChoice) {
-              predData.battingChoice = toss.battingChoice;
-            }
-            transaction.set(predictionRef, predData, { merge: true });
+              predictedWinner: newTeam,
+              timestamp: new Date().toISOString(),
+              optionsAvailable: options,
+              initialStatus: matchData?.status || 'UPCOMING'
+            }, { merge: true });
           }
+          
+          // Update match document with new vote counts
+          transaction.update(matchRef, { 
+            votes,
+            // Keep legacy fields for backward compatibility
+            homeVotes: votes[matchData?.homeTeam || ''] || 0,
+            awayVotes: votes[matchData?.awayTeam || ''] || 0
+          });
         }
       });
-      
-      // Track writes/deletes
-      const writeCount = Object.values(pendingPredictions).filter(t => t !== '').length;
-      const deleteCount = Object.values(pendingPredictions).filter(t => t === '').length;
-      if (writeCount > 0) trackWrites(writeCount);
-      if (deleteCount > 0) trackDeletes(deleteCount);
+
+      // Track writes/deletes (each match update + each prediction update)
+      const writeCount = Object.values(pendingPredictions).length * 2; 
+      trackWrites(writeCount);
 
       setPendingPredictions({});
-      setPendingToss({});
       if (selectedUserForAdmin) {
         const snap = await getDocs(query(collection(db, 'predictions'), where('userId', '==', selectedUserForAdmin.uid)));
         trackReads(snap.docs.length || 1);
@@ -704,8 +1030,7 @@ function PredictorApp() {
       } else {
         await fetchUserPredictions();
       }
-      // Skip refetching matches (they don't change on prediction save) - just refresh vote counts
-      await fetchVoteCounts();
+      // Skip refetching matches (they don't change on prediction save) - just refresh usage
       refreshUsageStats();
       showToast(`Predictions saved for ${selectedUserForAdmin ? selectedUserForAdmin.displayName : 'you'}!`);
     } catch (e) {
@@ -732,11 +1057,109 @@ function PredictorApp() {
     }
   };
 
-  const handleUpdateMatch = async (matchId: string, updates: Partial<Match>) => {
+  const resolveDynamicPredictionsForMatch = async (matchId: string, matchData: Match) => {
     if (!isAdminUser) return;
     try {
-      await updateDoc(doc(db, 'matches', matchId), updates);
+      const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', matchId)));
+      trackReads(predsSnap.docs.length || 1);
+      
+      const batch = writeBatch(db);
+      let resolvedCount = 0;
+      const newVotes = { ...(matchData.votes || {}) };
+
+      predsSnap.docs.forEach(d => {
+        const pred = d.data() as Prediction;
+        const resolved = resolvePredictedTeam(pred, matchData);
+        
+        // If it was a dynamic prediction and we now have a resolved team
+        if (['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(pred.predictedWinner) && resolved) {
+          batch.update(d.ref, { 
+            predictedWinner: resolved,
+            resolvedFrom: pred.predictedWinner // Keep track for audit
+          });
+          
+          // Update the votes map: decrement dynamic, increment resolved
+          if (newVotes[pred.predictedWinner]) {
+            newVotes[pred.predictedWinner] = Math.max(0, newVotes[pred.predictedWinner] - 1);
+          }
+          newVotes[resolved] = (newVotes[resolved] || 0) + 1;
+          
+          resolvedCount++;
+        }
+      });
+
+      if (resolvedCount > 0) {
+        // Update the match document with the new votes map
+        batch.update(doc(db, 'matches', matchId), { 
+          votes: newVotes,
+          homeVotes: newVotes[matchData.homeTeam] || 0,
+          awayVotes: newVotes[matchData.awayTeam] || 0
+        });
+        
+        await batch.commit();
+        trackWrites(resolvedCount + 1);
+        console.log(`Resolved ${resolvedCount} dynamic predictions for match ${matchId}`);
+      }
+    } catch (error) {
+      console.error("Error resolving dynamic predictions:", error);
+    }
+  };
+
+  const handleResetMatch = async (matchId: string) => {
+    if (!isAdminUser) return;
+    try {
+      const matchRef = doc(db, 'matches', matchId);
+      await updateDoc(matchRef, {
+        status: 'LIVE',
+        winner: deleteField(),
+        homeScore: deleteField(),
+        awayScore: deleteField(),
+        summary: deleteField()
+      });
+      
+      // Clear pointsEarned from predictions
+      const predsRef = collection(db, 'predictions');
+      const q = query(predsRef, where('matchId', '==', matchId));
+      const predsSnap = await getDocs(q);
+      const batch = writeBatch(db);
+      predsSnap.forEach(d => {
+        batch.update(d.ref, {
+          pointsEarned: deleteField(),
+          resolvedWinner: deleteField()
+        });
+      });
+      await batch.commit();
+      
+      showToast("Match reset to LIVE. Please recalculate all points to update leaderboard.");
+      handleRefresh();
+    } catch (error) {
+      console.error("Error resetting match:", error);
+      showToast("Failed to reset match.");
+    }
+  };
+
+  const handleUpdateMatch = async (matchId: string, updates: Partial<Match>) => {
+    if (!isAdminUser) return;
+    
+    // Filter out undefined values to prevent Firestore errors
+    const cleanUpdates = Object.fromEntries(
+      Object.entries(updates).filter(([_, v]) => v !== undefined)
+    );
+
+    if (Object.keys(cleanUpdates).length === 0) return;
+
+    try {
+      await updateDoc(doc(db, 'matches', matchId), cleanUpdates);
       trackWrites(1);
+      
+      // Fetch the updated match to resolve dynamic predictions if toss info was updated
+      const matchDoc = await getDoc(doc(db, 'matches', matchId));
+      const updatedMatch = { id: matchDoc.id, ...matchDoc.data() } as Match;
+      
+      if (cleanUpdates.tossWinner || cleanUpdates.battingFirst) {
+        await resolveDynamicPredictionsForMatch(matchId, updatedMatch);
+      }
+
       setEditingMatch(null);
       await fetchMatches(true);
       refreshUsageStats();
@@ -768,26 +1191,37 @@ function PredictorApp() {
       
       // Count votes
       allPreds.forEach(p => {
-        if (!counts[p.matchId]) counts[p.matchId] = { home: 0, away: 0 };
-        const match = allMatches.find(m => m.id === p.matchId);
-        if (match) {
-          if (p.predictedWinner === match.homeTeam) counts[p.matchId].home++;
-          else if (p.predictedWinner === match.awayTeam) counts[p.matchId].away++;
+        // Only count votes for matches that actually exist in the matches collection
+        if (counts[p.matchId]) {
+          const match = allMatches.find(m => m.id === p.matchId);
+          if (match) {
+            // Update the votes map for all types of predictions
+            const matchVotes = counts[p.matchId] as any;
+            matchVotes[p.predictedWinner] = (matchVotes[p.predictedWinner] || 0) + 1;
+
+            if (p.predictedWinner === match.homeTeam) counts[p.matchId].home++;
+            else if (p.predictedWinner === match.awayTeam) counts[p.matchId].away++;
+          }
         }
       });
       
       const batch = writeBatch(db);
-      Object.entries(counts).forEach(([matchId, voteData]) => {
-        batch.update(doc(db, 'matches', matchId), {
-          homeVotes: voteData.home,
-          awayVotes: voteData.away
-        });
+      // Only iterate over matches that were successfully fetched
+      allMatches.forEach(match => {
+        const voteData = counts[match.id];
+        if (voteData) {
+          const { home, away, ...otherVotes } = voteData as any;
+          batch.update(doc(db, 'matches', match.id), {
+            homeVotes: home,
+            awayVotes: away,
+            votes: voteData
+          });
+        }
       });
       
       await batch.commit();
-      trackWrites(Object.keys(counts).length);
-      const freshMatches = await fetchMatches(true);
-      await fetchVoteCounts(freshMatches);
+      trackWrites(allMatches.length);
+      await fetchMatches(true);
       refreshUsageStats();
       showToast("Vote counts recalculated successfully!");
     } catch (error) {
@@ -801,8 +1235,36 @@ function PredictorApp() {
   const [recalculatingPoints, setRecalculatingPoints] = useState(false);
   const handleRecalculateAllPoints = async (skipConfirmation = false) => {
     if (!isAdminUser || recalculatingPoints) return;
-    if (!skipConfirmation && !window.confirm("CRITICAL: This will reset all user points to 0 and recalculate them based on ALL completed matches. Continue?")) return;
     
+    if (!skipConfirmation) {
+      setConfirmation({
+        title: "Recalculate All Points",
+        message: "CRITICAL: This will reset all user points to 0 and recalculate them based on ALL completed matches. Continue?",
+        confirmText: "Recalculate",
+        type: 'danger',
+        onConfirm: () => {
+          setConfirmation(null);
+          executeRecalculateAllPoints();
+        }
+      });
+      return;
+    }
+    executeRecalculateAllPoints();
+  };
+
+  const calculateTitle = (stats: { totalPredicted: number, correctCount: number, skips: number, results: ('W' | 'L' | 'S')[] }) => {
+    const winRate = stats.totalPredicted > 0 ? (stats.correctCount / stats.totalPredicted) : 0;
+    
+    if (winRate > 0.7 && stats.totalPredicted >= 5) return "The Oracle 🔮";
+    if (stats.skips >= TOTAL_SKIPS_ALLOWED) return "Skip King 👑";
+    if (stats.results.length >= 3 && stats.results.slice(-3).every(r => r === 'W')) return "On Fire 🔥";
+    if (stats.results.length >= 3 && stats.results.slice(-3).every(r => r === 'L')) return "Unlucky 🦆";
+    if (stats.totalPredicted >= 20) return "Veteran 🎖️";
+    if (stats.totalPredicted > 0 && winRate < 0.2) return "Gambler 🎲";
+    return "";
+  };
+
+  const executeRecalculateAllPoints = async () => {
     setRecalculatingPoints(true);
     try {
       showToast("Recalculating all points... this may take a moment.");
@@ -820,17 +1282,26 @@ function PredictorApp() {
       const allPredictions = predsSnap.docs.map(d => d.data() as Prediction);
       const allUsers = usersSnap.docs.map(d => d.data() as UserProfile);
       
-      const completedMatches = allMatches.filter(m => m.status === 'COMPLETED' && m.winner);
+      const completedMatches = allMatches
+        .filter(m => (m.status === 'COMPLETED' || m.status === 'ABANDONED') && m.winner)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       
       // 2. Initialize new points structure
-      const userStats: Record<string, { points: number, skips: number }> = {};
+      const userStats: Record<string, { 
+        points: number, 
+        skips: number, 
+        results: ('W' | 'L' | 'S')[],
+        correctCount: number,
+        totalPredicted: number
+      }> = {};
       allUsers.forEach(u => {
-        userStats[u.uid] = { points: 0, skips: 0 };
+        userStats[u.uid] = { points: 0, skips: 0, results: [], correctCount: 0, totalPredicted: 0 };
       });
       
       // 3. Process each completed match
       for (const match of completedMatches) {
         const winner = match.winner!;
+        const isAbandoned = match.status === 'ABANDONED' || winner === 'ABANDONED';
         const matchPredictions = allPredictions.filter(p => p.matchId === match.id);
         
         // Resolve predictions
@@ -839,42 +1310,105 @@ function PredictorApp() {
           resolvedWinner: resolvePredictedTeam(p, match)
         }));
         
-        const winners = resolvedPredictions.filter(p => p.resolvedWinner === winner);
-        const losers = resolvedPredictions.filter(p => p.resolvedWinner !== winner);
-        
         // Point Multiplier
         let multiplier = 1;
         if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
         if (match.type === 'FINAL') multiplier = 4;
         
-        const totalLosers = losers.length;
-        const totalWinners = winners.length;
-        const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
-        const loserPoints = -1;
+        let winnerPoints = 0;
+        let loserPoints = 0;
+        let totalWinners = 0;
+
+        if (!isAbandoned) {
+          const winners = resolvedPredictions.filter(p => p.resolvedWinner === winner);
+          const losers = resolvedPredictions.filter(p => p.resolvedWinner !== winner);
+          totalWinners = winners.length;
+          const totalLosers = losers.length;
+          
+          // Calculate how many people will lose points for skipping
+          let skippersLosingPoints = 0;
+          allUsers.forEach(u => {
+            const userPred = resolvedPredictions.find(p => p.userId === u.uid);
+            if (!userPred) {
+              if (match.type === 'FINAL' || userStats[u.uid].skips >= TOTAL_SKIPS_ALLOWED) {
+                skippersLosingPoints++;
+              }
+            }
+          });
+
+          const totalPool = totalLosers + skippersLosingPoints;
+          winnerPoints = totalWinners > 0 ? (totalPool / totalWinners) : 0;
+          loserPoints = totalWinners > 0 ? -1 : 0;
+        }
         
         // Update stats for all users for THIS match
         allUsers.forEach(u => {
           const userPred = resolvedPredictions.find(p => p.userId === u.uid);
           let pointChange = 0;
           let skipChange = 0;
+          let result: 'W' | 'L' | 'S' = 'L';
           
-          if (userPred) {
-            pointChange = userPred.resolvedWinner === winner ? winnerPoints : loserPoints;
+          if (isAbandoned) {
+            pointChange = 0;
+            skipChange = 0;
+            // Don't add to results for abandoned
+          } else if (userPred) {
+            const isCorrect = userPred.resolvedWinner === winner;
+            pointChange = isCorrect ? winnerPoints : loserPoints;
+            result = isCorrect ? 'W' : 'L';
+            userStats[u.uid].totalPredicted++;
+            if (isCorrect) userStats[u.uid].correctCount++;
+            userStats[u.uid].results.push(result);
           } else {
             // Did not predict
             if (match.type === 'FINAL') {
-              pointChange = -1;
+              pointChange = totalWinners > 0 ? -1 : 0;
+              result = 'L';
+              userStats[u.uid].results.push(result);
             } else if (userStats[u.uid].skips < TOTAL_SKIPS_ALLOWED) {
               skipChange = 1;
               pointChange = 0;
+              result = 'S';
+              userStats[u.uid].results.push(result);
             } else {
-              pointChange = -1;
+              pointChange = totalWinners > 0 ? -1 : 0;
+              result = 'L';
+              userStats[u.uid].results.push(result);
             }
           }
           
           userStats[u.uid].points += (pointChange * multiplier);
           userStats[u.uid].skips += skipChange;
         });
+
+        // Update Predictions with resolved winner and points earned for this match in chunks of 500
+        for (let i = 0; i < resolvedPredictions.length; i += 500) {
+          const predBatch = writeBatch(db);
+          const chunk = resolvedPredictions.slice(i, i + 500);
+          chunk.forEach(p => {
+            const isCorrect = p.resolvedWinner === winner;
+            const points = isAbandoned ? 0 : (isCorrect ? winnerPoints : loserPoints) * multiplier;
+            predBatch.update(doc(db, 'predictions', p.id), {
+              resolvedWinner: p.resolvedWinner || null,
+              pointsEarned: points
+            });
+          });
+          await predBatch.commit();
+        }
+        trackWrites(resolvedPredictions.length);
+
+        // Update match metadata for scoring transparency
+        const matchBatch = writeBatch(db);
+        matchBatch.update(doc(db, 'matches', match.id), {
+          winnerPoints: isAbandoned ? 0 : (winnerPoints * multiplier),
+          totalLosers: isAbandoned ? 0 : (resolvedPredictions.filter(p => p.resolvedWinner !== winner).length),
+          totalSkippersLosingPoints: isAbandoned ? 0 : (allUsers.filter(u => {
+            const pred = resolvedPredictions.find(p => p.userId === u.uid);
+            return !pred && (match.type === 'FINAL' || userStats[u.uid].skips >= TOTAL_SKIPS_ALLOWED);
+          }).length),
+          totalWinners: isAbandoned ? 0 : (resolvedPredictions.filter(p => p.resolvedWinner === winner).length)
+        });
+        await matchBatch.commit();
       }
       
       // 4. Batch update all users in chunks of 500
@@ -886,13 +1420,21 @@ function PredictorApp() {
       for (const chunk of userChunks) {
         const batch = writeBatch(db);
         chunk.forEach(u => {
+          const stats = userStats[u.uid];
+          const title = calculateTitle(stats);
+
           batch.update(doc(db, 'users', u.uid), {
-            totalPoints: userStats[u.uid].points,
-            skipsUsed: userStats[u.uid].skips
+            totalPoints: stats.points,
+            skipsUsed: stats.skips,
+            form: stats.results.slice(-5), // Keep last 5
+            title: title || null
           });
         });
         await batch.commit();
       }
+      
+      // Clear breakdown cache to force re-fetch of updated predictions
+      setUserPredictionsData({});
       
       trackWrites(allUsers.length);
       refreshUsageStats();
@@ -943,9 +1485,9 @@ function PredictorApp() {
           awayScore: match.awayScore || null,
           tossWinner: match.tossWinner || null,
           battingFirst: match.battingFirst || null,
-          date: match.date,
-          dateIST: match.dateIST,
-          odds: match.odds
+          date: match.date || currentMatchData.date || new Date().toISOString(),
+          dateIST: match.dateIST || currentMatchData.dateIST || null,
+          odds: match.odds || null
         });
         trackWrites(1);
         await fetchMatches(true);
@@ -956,31 +1498,46 @@ function PredictorApp() {
 
       // If already completed with a DIFFERENT winner, update winner and recalculate ALL points
       if (isAlreadyCompleted && currentMatchData.winner && currentMatchData.winner !== winner) {
-        if (!window.confirm(`This match was already completed with ${currentMatchData.winner} as winner. Changing winner to ${winner} will trigger a full points recalculation for ALL users. Continue?`)) {
-          setCompletingMatch(false);
-          return;
-        }
-
-        await updateDoc(doc(db, 'matches', match.id), {
-          winner,
-          homeScore: match.homeScore || null,
-          awayScore: match.awayScore || null,
-          tossWinner: match.tossWinner || null,
-          battingFirst: match.battingFirst || null,
-          date: match.date,
-          dateIST: match.dateIST,
-          odds: match.odds
+        setConfirmation({
+          title: "Change Winner",
+          message: `This match was already completed with ${currentMatchData.winner} as winner. Changing winner to ${winner} will trigger a full points recalculation for ALL users. Continue?`,
+          confirmText: "Change & Recalculate",
+          type: 'danger',
+          onConfirm: async () => {
+            setConfirmation(null);
+            setCompletingMatch(true);
+            try {
+              await updateDoc(doc(db, 'matches', match.id), {
+                winner,
+                homeScore: match.homeScore || null,
+                awayScore: match.awayScore || null,
+                tossWinner: match.tossWinner || null,
+                battingFirst: match.battingFirst || null,
+                date: match.date || currentMatchData.date || new Date().toISOString(),
+                dateIST: match.dateIST || currentMatchData.dateIST || null,
+                odds: match.odds || null
+              });
+              trackWrites(1);
+              await handleRecalculateAllPoints(true);
+              await fetchMatches(true);
+            } catch (err) {
+              console.error(err);
+              showToast("Failed to update winner", "error");
+            } finally {
+              setCompletingMatch(false);
+            }
+          }
         });
-        trackWrites(1);
-        // Skip confirmation in recalculate since we already confirmed above
-        await handleRecalculateAllPoints(true);
-        await fetchMatches(true);
         setCompletingMatch(false);
         return;
       }
 
       // If match is completed but winner was never set, fall through to
       // the normal first-time completion flow below to calculate points
+
+      // Resolve dynamic predictions one last time before points calculation
+      // IMPORTANT: Use 'match' (latest from UI) instead of 'currentMatchData' (stale from Firestore)
+      await resolveDynamicPredictionsForMatch(match.id, match);
 
       // 2. Get all predictions for this match
       const predsSnap = await getDocs(query(collection(db, 'predictions'), where('matchId', '==', match.id)));
@@ -990,28 +1547,47 @@ function PredictorApp() {
       // Resolve predictions (handle TOSS_WINNER, BATTING_FIRST, etc.)
       const resolvedPredictions = matchPredictions.map(p => ({
         ...p,
-        resolvedWinner: resolvePredictedTeam(p, currentMatchData)
+        resolvedWinner: resolvePredictedTeam(p, match)
       }));
 
-      const winners = resolvedPredictions.filter(p => p.resolvedWinner === winner);
-      const losers = resolvedPredictions.filter(p => p.resolvedWinner !== winner);
+      const isAbandoned = winner === 'ABANDONED';
+      
+      // Update User Points & handle skips
+      const allUsersSnap = await getDocs(collection(db, 'users'));
+      trackReads(allUsersSnap.docs.length || 1);
+      const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
+
+      let winnerPoints = 0;
+      let loserPoints = 0;
+      let totalWinners = 0;
+      let totalLosers = 0;
+      let skippersLosingPoints = 0;
+
+      if (!isAbandoned) {
+        const winners = resolvedPredictions.filter(p => p.resolvedWinner === winner);
+        const losers = resolvedPredictions.filter(p => p.resolvedWinner !== winner);
+        totalWinners = winners.length;
+        totalLosers = losers.length;
+        
+        // Calculate how many people will lose points for skipping
+        allUserProfiles.forEach(u => {
+          const userPred = resolvedPredictions.find(p => p.userId === u.uid);
+          if (!userPred) {
+            if (match.type === 'FINAL' || (u.skipsUsed || 0) >= TOTAL_SKIPS_ALLOWED) {
+              skippersLosingPoints++;
+            }
+          }
+        });
+
+        const totalPool = totalLosers + skippersLosingPoints;
+        winnerPoints = totalWinners > 0 ? (totalPool / totalWinners) : 0;
+        loserPoints = totalWinners > 0 ? -1 : 0;
+      }
 
       // Point Multiplier
       let multiplier = 1;
       if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
       if (match.type === 'FINAL') multiplier = 4;
-
-      // Calculate points: winners get (losers/winners), losers get -1
-      const totalLosers = losers.length;
-      const totalWinners = winners.length;
-
-      const winnerPoints = totalWinners > 0 ? (totalLosers / totalWinners) : 0;
-      const loserPoints = -1;
-
-      // Update User Points & handle skips
-      const allUsersSnap = await getDocs(collection(db, 'users'));
-      trackReads(allUsersSnap.docs.length || 1);
-      const allUserProfiles = allUsersSnap.docs.map(d => d.data() as UserProfile);
 
       // Update User Points & handle skips in chunks of 500
       const userChunks: UserProfile[][] = [];
@@ -1019,18 +1595,37 @@ function PredictorApp() {
         userChunks.push(allUserProfiles.slice(i, i + 500));
       }
 
+      // Update Predictions with resolved winner and points earned
+      const predBatch = writeBatch(db);
+      resolvedPredictions.forEach(p => {
+        const isCorrect = p.resolvedWinner === winner;
+        const points = isAbandoned ? 0 : (isCorrect ? winnerPoints : loserPoints) * multiplier;
+        predBatch.update(doc(db, 'predictions', p.id), {
+          resolvedWinner: p.resolvedWinner || null,
+          pointsEarned: points
+        });
+      });
+      await predBatch.commit();
+      trackWrites(resolvedPredictions.length);
+
       for (const chunk of userChunks) {
         const batch = writeBatch(db);
         
         // If it's the first chunk, also update the match status
         if (userChunks.indexOf(chunk) === 0) {
           batch.update(doc(db, 'matches', match.id), {
-            status: 'COMPLETED',
+            status: isAbandoned ? 'ABANDONED' : 'COMPLETED',
             winner,
             homeScore: match.homeScore || null,
             awayScore: match.awayScore || null,
             tossWinner: match.tossWinner || null,
-            battingFirst: match.battingFirst || null
+            battingFirst: match.battingFirst || null,
+            summary: match.summary || null,
+            completedAt: new Date().toISOString(),
+            winnerPoints: winnerPoints * multiplier,
+            totalLosers,
+            totalSkippersLosingPoints: skippersLosingPoints,
+            totalWinners
           });
         }
 
@@ -1038,33 +1633,62 @@ function PredictorApp() {
           const userPred = resolvedPredictions.find(p => p.userId === u.uid);
           let pointChange = 0;
           let skipChange = 0;
+          let result: 'W' | 'L' | 'S' | null = null;
 
-          if (userPred) {
-            pointChange = userPred.resolvedWinner === winner ? winnerPoints : loserPoints;
+          if (isAbandoned) {
+            pointChange = 0;
+            skipChange = 0;
+          } else if (userPred) {
+            const isCorrect = userPred.resolvedWinner === winner;
+            pointChange = isCorrect ? winnerPoints : loserPoints;
+            result = isCorrect ? 'W' : 'L';
           } else {
             // Did not predict
             if (match.type === 'FINAL') {
-              pointChange = -1; // Cannot skip finals
-            } else if (u.skipsUsed < TOTAL_SKIPS_ALLOWED) {
+              pointChange = totalWinners > 0 ? -1 : 0;
+              result = 'L';
+            } else if ((u.skipsUsed || 0) < TOTAL_SKIPS_ALLOWED) {
               skipChange = 1;
               pointChange = 0;
+              result = 'S';
             } else {
-              pointChange = -1; // No skips left
+              pointChange = totalWinners > 0 ? -1 : 0;
+              result = 'L';
             }
           }
 
+          const newForm = result ? [...(u.form || []), result].slice(-5) : (u.form || []);
+          
+          // Re-calculate title for live sync (fixes Arvind's issue)
+          const title = calculateTitle({
+            totalPredicted: 0, // Oracle/Veteran titles will sync during full recalculation
+            correctCount: 0,
+            skips: (u.skipsUsed || 0) + skipChange,
+            results: newForm
+          });
+
           batch.update(doc(db, 'users', u.uid), {
             totalPoints: (u.totalPoints || 0) + (pointChange * multiplier),
-            skipsUsed: (u.skipsUsed || 0) + skipChange
+            skipsUsed: (u.skipsUsed || 0) + skipChange,
+            form: newForm,
+            title: title || null
           });
         }
         await batch.commit();
       }
 
       trackWrites(1 + allUserProfiles.length);
+      
+      // Clear breakdown cache to force re-fetch of updated predictions
+      setUserPredictionsData({});
+      
       refreshUsageStats();
       await fetchMatches(true);
-      showToast(`Match completed! ${winner} wins. ${totalWinners} correct, ${totalLosers} wrong.`);
+      if (isAbandoned) {
+        showToast(`Match abandoned. Everyone gets 0 points.`);
+      } else {
+        showToast(`Match completed! ${winner} wins. ${totalWinners} correct, ${totalLosers} wrong.`);
+      }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `complete-match/${match.id}`);
       showToast("Failed to complete match", "error");
@@ -1075,23 +1699,31 @@ function PredictorApp() {
 
   const handleResetUserPoints = async (userId: string) => {
     if (!isAdminUser) return;
-    if (!window.confirm("Are you sure you want to reset points for this user? This will set totalPoints to 0 and skipsUsed to 0.")) return;
     
-    try {
-      await updateDoc(doc(db, 'users', userId), {
-        totalPoints: 0,
-        skipsUsed: 0
-      });
-      trackWrites(1);
-      showToast("User points reset successfully");
-      // Refresh user list
-      const usersSnap = await getDocs(query(collection(db, 'users'), orderBy('totalPoints', 'desc')));
-      trackReads(usersSnap.docs.length);
-      setUsers(usersSnap.docs.map(d => d.data() as UserProfile));
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, `reset-points/${userId}`);
-      showToast("Failed to reset points", "error");
-    }
+    setConfirmation({
+      title: "Reset User Points",
+      message: "Are you sure you want to reset points for this user? This will set totalPoints to 0 and skipsUsed to 0.",
+      confirmText: "Reset",
+      type: 'danger',
+      onConfirm: async () => {
+        setConfirmation(null);
+        try {
+          await updateDoc(doc(db, 'users', userId), {
+            totalPoints: 0,
+            skipsUsed: 0
+          });
+          trackWrites(1);
+          showToast("User points reset successfully");
+          // Refresh user list
+          const usersSnap = await getDocs(query(collection(db, 'users'), orderBy('totalPoints', 'desc')));
+          trackReads(usersSnap.docs.length);
+          setUsers(usersSnap.docs.map(d => d.data() as UserProfile));
+        } catch (error) {
+          handleFirestoreError(error, OperationType.WRITE, `reset-points/${userId}`);
+          showToast("Failed to reset points", "error");
+        }
+      }
+    });
   };
 
   // Admin: Auto-update match statuses (UPCOMING→LIVE, LIVE→COMPLETED with results from web)
@@ -1106,10 +1738,22 @@ function PredictorApp() {
         if (liveData.awayScore) updates.awayScore = liveData.awayScore;
         if (liveData.summary) updates.summary = liveData.summary;
         if (liveData.status) updates.status = liveData.status;
-        
+        if (liveData.tossWinner) updates.tossWinner = liveData.tossWinner;
+        if (liveData.battingFirst) updates.battingFirst = liveData.battingFirst;
+
         if (Object.keys(updates).length > 0) {
-          await handleUpdateMatch(match.id, updates);
-          showToast("Live score updated successfully");
+          // If match is completed, use handleCompleteMatch to process points
+          if (liveData.status === 'COMPLETED' && liveData.winner) {
+            const updatedMatch = {
+              ...match,
+              ...updates
+            };
+            await handleCompleteMatch(updatedMatch, liveData.winner);
+            showToast(`Match completed! ${liveData.winner} won.`);
+          } else {
+            await handleUpdateMatch(match.id, updates);
+            showToast("Live score updated successfully");
+          }
           await fetchMatches(true);
         } else {
           showToast("No live updates found for this match");
@@ -1139,12 +1783,19 @@ function PredictorApp() {
         if (match.status === 'UPCOMING' && isAfter(now, matchDate)) {
           statusBatch.update(doc(db, 'matches', match.id), { status: 'LIVE' as MatchStatus });
           statusUpdates++;
+          
+          // Also resolve dynamic predictions if we already have toss info
+          if (match.tossWinner || match.battingFirst) {
+            resolveDynamicPredictionsForMatch(match.id, { ...match, status: 'LIVE' });
+          }
         }
 
-        // LIVE → try to complete: if 4+ hours since match start
+        // LIVE → try to complete: if 4+ hours since match start OR if it is from yesterday
         if (match.status === 'LIVE' || (match.status === 'UPCOMING' && isAfter(now, matchDate))) {
           const hoursElapsed = (now.getTime() - matchDate.getTime()) / (1000 * 60 * 60);
-          if (hoursElapsed >= 4) {
+          const isYesterday = !isToday(matchDate) && isBefore(matchDate, now);
+          
+          if (hoursElapsed >= 4 || isYesterday) {
             matchesToComplete.push(match);
           }
         }
@@ -1167,14 +1818,31 @@ function PredictorApp() {
         try {
           if (!silent) showToast(`Fetching live score for ${match.homeTeam} vs ${match.awayTeam}...`);
           const liveData = await fetchLiveMatchData(match);
-          if (liveData && (liveData.homeScore || liveData.awayScore || liveData.summary)) {
-            await handleUpdateMatch(match.id, {
-              homeScore: liveData.homeScore || match.homeScore,
-              awayScore: liveData.awayScore || match.awayScore,
-              summary: liveData.summary || match.summary,
-              status: liveData.status || match.status
-            });
-            liveUpdates++;
+          if (liveData && (liveData.homeScore || liveData.awayScore || liveData.summary || liveData.tossWinner)) {
+            // If match is completed, use handleCompleteMatch to process points
+            if (liveData.status === 'COMPLETED' && liveData.winner) {
+              const updatedMatch = {
+                ...match,
+                homeScore: liveData.homeScore || match.homeScore,
+                awayScore: liveData.awayScore || match.awayScore,
+                summary: liveData.summary || match.summary,
+                status: liveData.status || match.status,
+                tossWinner: liveData.tossWinner || match.tossWinner,
+                battingFirst: liveData.battingFirst || match.battingFirst
+              };
+              await handleCompleteMatch(updatedMatch, liveData.winner);
+              completedCount++;
+            } else {
+              await handleUpdateMatch(match.id, {
+                homeScore: liveData.homeScore || match.homeScore,
+                awayScore: liveData.awayScore || match.awayScore,
+                summary: liveData.summary || match.summary,
+                status: liveData.status || match.status,
+                tossWinner: liveData.tossWinner || match.tossWinner,
+                battingFirst: liveData.battingFirst || match.battingFirst
+              });
+              liveUpdates++;
+            }
           }
         } catch (e) {
           console.error(`Failed to fetch live score for ${match.id}:`, e);
@@ -1185,20 +1853,27 @@ function PredictorApp() {
         try {
           if (!silent) showToast(`Fetching result for ${match.homeTeam} vs ${match.awayTeam}...`);
           const result = await fetchOfficialResult(match);
-          if (result?.winner && result.status === 'COMPLETED' &&
-              result.winner !== 'DRAW' && result.winner !== 'ABANDONED') {
+          if (result?.winner && (result.status === 'COMPLETED' || result.status === 'ABANDONED') &&
+              result.winner !== 'DRAW') {
             const updatedMatch = {
               ...match,
               homeScore: result.homeScore || match.homeScore,
-              awayScore: result.awayScore || match.awayScore
+              awayScore: result.awayScore || match.awayScore,
+              tossWinner: result.tossWinner || match.tossWinner,
+              battingFirst: result.battingFirst || match.battingFirst,
+              summary: result.summary || match.summary,
+              status: result.status || 'COMPLETED'
             };
             await handleCompleteMatch(updatedMatch, result.winner);
             completedCount++;
-          } else if (result?.homeScore || result?.awayScore) {
-            // Update scores even if not completed yet
+          } else if (result?.homeScore || result?.awayScore || result?.tossWinner) {
+            // Update scores/toss even if not completed yet
             await handleUpdateMatch(match.id, {
               homeScore: result.homeScore || match.homeScore,
-              awayScore: result.awayScore || match.awayScore
+              awayScore: result.awayScore || match.awayScore,
+              tossWinner: result.tossWinner || match.tossWinner,
+              battingFirst: result.battingFirst || match.battingFirst,
+              summary: result.summary || match.summary
             });
           }
         } catch (e) {
@@ -1233,27 +1908,80 @@ function PredictorApp() {
     }
   };
 
-  // 4. Automatic Background Updates for Live Matches (Admin Only)
+  // 4. Automatic Background Updates for Live Matches
   useEffect(() => {
+    // ONLY admins should run the external API poll to update the database
+    // This dramatically reduces Gemini and Firestore write usage
     if (!isAdminUser) return;
 
     const intervalId = setInterval(() => {
       const now = new Date();
-      const hasLiveMatches = matches.some(m => {
-        if (m.status !== 'LIVE') return false;
+      
+      // Determine if a background update is actually needed (any LIVE match or overdue UPCOMING)
+      const needsUpdate = matches.some(m => {
         const matchDate = parseISO(m.date);
-        const hoursElapsed = (now.getTime() - matchDate.getTime()) / (1000 * 60 * 60);
-        return hoursElapsed < 4; // Only update if within 4 hours of start
+        return (m.status === 'LIVE') || (m.status === 'UPCOMING' && isAfter(now, matchDate));
       });
-
-      if (hasLiveMatches) {
-        console.log("Auto-refreshing live scores...");
+      
+      if (needsUpdate) {
+        console.log("Admin auto-updating matches...");
         handleAutoUpdateMatches(true);
       }
-    }, 30 * 60 * 1000); // Every 30 minutes
+    }, 5 * 60 * 1000); // 5 minutes is plenty for background sync
 
     return () => clearInterval(intervalId);
   }, [isAdminUser, matches]);
+
+  // 5. Match Alerts & Missed Prediction Notifications
+  useEffect(() => {
+    if (!user || !matches.length) return;
+
+    const intervalId = setInterval(() => {
+      const now = new Date();
+      
+      // 1. Check for upcoming matches (1h, 20m, 5m alerts)
+      matches.forEach(match => {
+        if (match.status !== 'UPCOMING') return;
+        
+        const matchDate = parseISO(match.date);
+        const diffMinutes = (matchDate.getTime() - now.getTime()) / (1000 * 60);
+        const hasPredicted = predictions.some(p => p.matchId === match.id);
+
+        if (!hasPredicted) {
+          // 1 Hour Alert
+          if (diffMinutes <= 60 && diffMinutes > 55 && !localStorage.getItem(`alert_1h_${match.id}`)) {
+            showToast(`Match starts in 1 hour: ${match.homeTeam} vs ${match.awayTeam}! Don't forget to predict.`, "success");
+            localStorage.setItem(`alert_1h_${match.id}`, 'true');
+          }
+          // 20 Minute Alert
+          if (diffMinutes <= 20 && diffMinutes > 15 && !localStorage.getItem(`alert_20m_${match.id}`)) {
+            showToast(`Only 20 minutes left to predict for ${match.homeTeam} vs ${match.awayTeam}!`, "error");
+            localStorage.setItem(`alert_20m_${match.id}`, 'true');
+          }
+          // 5 Minute Alert
+          if (diffMinutes <= 5 && diffMinutes > 0 && !localStorage.getItem(`alert_5m_${match.id}`)) {
+            showToast(`FINAL CALL: ${match.homeTeam} vs ${match.awayTeam} starts in 5 minutes!`, "error");
+            localStorage.setItem(`alert_5m_${match.id}`, 'true');
+          }
+        }
+      });
+
+      // 2. Check for missed predictions in recently completed matches
+      const completedMatches = matches.filter(m => m.status === 'COMPLETED' || m.status === 'ABANDONED');
+      completedMatches.forEach(match => {
+        const hasPredicted = predictions.some(p => p.matchId === match.id);
+        const alertKey = `alert_missed_${match.id}`;
+        
+        if (!hasPredicted && !localStorage.getItem(alertKey)) {
+          showToast(`You missed the prediction for ${match.homeTeam} vs ${match.awayTeam}. Check the results!`, "error");
+          localStorage.setItem(alertKey, 'true');
+        }
+      });
+
+    }, 60 * 1000); // Check every minute
+
+    return () => clearInterval(intervalId);
+  }, [user, matches, predictions]);
 
   const handleSignIn = async () => {
     setIsSigningIn(true);
@@ -1342,21 +2070,118 @@ function PredictorApp() {
   }
 
   return (
-    <div className="min-h-screen pb-24">
+    <div className="min-h-screen pb-24 relative overflow-hidden">
+      <Atmosphere />
       {/* Toast Notification */}
-      {toast && (
-        <div className={cn(
-          "fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md animate-in fade-in slide-in-from-bottom-4",
-          toast.type === 'success' ? "bg-green-600 text-white" : "bg-red-600 text-white"
-        )}>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 text-sm font-medium">{toast.message}</div>
-            <button onClick={() => setToast(null)} className="text-white/60 hover:text-white">
-              <LogOut className="w-4 h-4 rotate-90" />
-            </button>
+                      <AnimatePresence>
+                        {toast && (
+                          <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                            className={cn(
+                              "fixed bottom-4 right-4 z-50 p-4 rounded-lg shadow-lg max-w-md",
+                              toast.type === 'success' ? "bg-green-600 text-white" : "bg-red-600 text-white"
+                            )}
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="flex-1 text-sm font-medium">{toast.message}</div>
+                              <button onClick={() => setToast(null)} className="text-white/60 hover:text-white">
+                                <LogOut className="w-4 h-4 rotate-90" />
+                              </button>
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+
+                      {/* Confirmation Modal */}
+                      <AnimatePresence>
+                        {confirmation && (
+                          <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
+                          >
+                            <motion.div
+                              initial={{ scale: 0.9, opacity: 0 }}
+                              animate={{ scale: 1, opacity: 1 }}
+                              exit={{ scale: 0.9, opacity: 0 }}
+                              className="bg-[#1a1d23] border border-white/10 rounded-2xl p-6 max-w-sm w-full shadow-2xl"
+                            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className={cn(
+                  "p-2 rounded-lg",
+                  confirmation.type === 'danger' ? "bg-red-500/20 text-red-400" : "bg-blue-500/20 text-blue-400"
+                )}>
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <h3 className="text-lg font-bold text-white">{confirmation.title}</h3>
+              </div>
+              <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                {confirmation.message}
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setConfirmation(null)}
+                  className="flex-1 py-3 rounded-xl bg-white/5 text-gray-400 font-bold hover:bg-white/10 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmation.onConfirm}
+                  className={cn(
+                    "flex-1 py-3 rounded-xl font-bold transition-colors",
+                    confirmation.type === 'danger' ? "bg-red-600 text-white hover:bg-red-700" : "bg-blue-600 text-white hover:bg-blue-700"
+                  )}
+                >
+                  {confirmation.confirmText || 'Confirm'}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pending Predictions Banner */}
+      {(() => {
+        const now = new Date();
+        const pendingMatches = matches.filter(m => {
+          const matchDate = parseISO(m.date);
+          const isLocked = isAfter(now, subMinutes(matchDate, 30));
+          const hasPredicted = predictions[m.id];
+          const isSoon = isAfter(now, subHours(matchDate, 1)) && !isLocked;
+          return !isLocked && !hasPredicted && m.status === 'UPCOMING' && isSoon;
+        });
+
+        if (pendingMatches.length === 0) return null;
+
+        return (
+          <div className="bg-red-500/10 border-b border-red-500/20 px-4 py-2 sticky top-[105px] z-40 backdrop-blur-md">
+            <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 text-red-400">
+                <AlertCircle className="w-4 h-4 animate-pulse" />
+                <span className="text-[10px] font-black uppercase tracking-widest">
+                  {pendingMatches.length} Pending {pendingMatches.length === 1 ? 'Prediction' : 'Predictions'}
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-red-300/60 italic">Match starts soon!</span>
+                <button 
+                  onClick={() => {
+                    setActiveTab('matches');
+                    const firstPending = document.getElementById(`match-${pendingMatches[0].id}`);
+                    if (firstPending) firstPending.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  }}
+                  className="px-2 py-0.5 rounded bg-red-500 text-white text-[9px] font-black uppercase tracking-tighter hover:bg-red-600 transition-colors"
+                >
+                  Predict Now
+                </button>
+              </div>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0F1115]/80 backdrop-blur-md border-b border-white/5 px-4 py-4">
@@ -1462,12 +2287,20 @@ function PredictorApp() {
                   Recalculate Votes
                 </button>
                 <button
-                  onClick={handleRecalculateAllPoints}
+                  onClick={() => handleRecalculateAllPoints()}
                   disabled={recalculatingPoints}
                   className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs font-bold hover:bg-red-500/20 transition-colors disabled:opacity-50"
                 >
                   <Trophy className={cn("w-3 h-3", recalculatingPoints && "animate-spin")} />
                   {recalculatingPoints ? 'Recalculating...' : 'Recalculate All Points'}
+                </button>
+                <button
+                  onClick={handleSendReminders}
+                  disabled={sendingReminders}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 text-xs font-bold hover:bg-indigo-500/20 transition-colors disabled:opacity-50"
+                >
+                  {sendingReminders ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                  Send Email Reminders
                 </button>
                 <button
                   onClick={() => handleAutoUpdateMatches(false)}
@@ -1597,7 +2430,7 @@ function PredictorApp() {
       </header>
 
       <main className="max-w-4xl mx-auto p-4">
-        {activeTab === 'matches' ? (
+        {activeTab === 'matches' && (
           <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-2">
               <div className="flex items-center justify-between w-full sm:w-auto">
@@ -1652,7 +2485,7 @@ function PredictorApp() {
             </div>
 
             <div className="grid gap-4">
-              {matches.filter(m => matchFilter === 'completed' ? m.status === 'COMPLETED' : m.status !== 'COMPLETED').length === 0 ? (
+              {matches.filter(m => matchFilter === 'completed' ? (m.status === 'COMPLETED' || m.status === 'ABANDONED') : (m.status !== 'COMPLETED' && m.status !== 'ABANDONED')).length === 0 ? (
                 <div className="widget-container p-12 text-center">
                   <Calendar className="w-12 h-12 text-gray-600 mx-auto mb-4 opacity-20" />
                   <p className="text-gray-500 font-bold">No {matchFilter === 'completed' ? 'completed' : 'upcoming'} matches found.</p>
@@ -1664,7 +2497,7 @@ function PredictorApp() {
                   </button>
                 </div>
               ) : matches
-                .filter(m => matchFilter === 'completed' ? m.status === 'COMPLETED' : m.status !== 'COMPLETED')
+                .filter(m => matchFilter === 'completed' ? (m.status === 'COMPLETED' || m.status === 'ABANDONED') : (m.status !== 'COMPLETED' && m.status !== 'ABANDONED'))
                 .sort((a, b) => {
                   try {
                     if (matchFilter === 'live-upcoming') {
@@ -1672,8 +2505,14 @@ function PredictorApp() {
                       const bToday = isToday(parseISO(b.date));
                       if (aToday && !bToday) return -1;
                       if (!aToday && bToday) return 1;
+                      return new Date(a.date).getTime() - new Date(b.date).getTime();
+                    } else {
+                      // Completed matches: last completed on top
+                      // Use completedAt if available, otherwise fallback to date
+                      const aTime = a.completedAt ? new Date(a.completedAt).getTime() : new Date(a.date).getTime();
+                      const bTime = b.completedAt ? new Date(b.completedAt).getTime() : new Date(b.date).getTime();
+                      return bTime - aTime;
                     }
-                    return new Date(a.date).getTime() - new Date(b.date).getTime();
                   } catch (e) {
                     return 0;
                   }
@@ -1685,20 +2524,16 @@ function PredictorApp() {
     : currentPredictions.find(p => p.matchId === match.id);
   
                 const effectiveStatus = getEffectiveStatus(match);
-                const isPending = pendingPredictions[match.id] !== undefined || pendingToss[match.id] !== undefined;
+                const isPending = pendingPredictions[match.id] !== undefined;
                 const isLocked = isAfter(new Date(), parseISO(match.date)) || effectiveStatus !== 'UPCOMING';
 
-                // Toss prediction state
                 const savedFullPred = currentPredictions.find(p => p.matchId === match.id);
-                const tossPending = pendingToss[match.id];
-                const currentTossWinner = tossPending?.tossWinner ?? savedFullPred?.tossWinner ?? '';
-                const currentBattingChoice = tossPending?.battingChoice ?? savedFullPred?.battingChoice ?? '';
                 const hasPredicted = !!prediction;
                 
-                // Use live vote counts computed from predictions (source of truth)
-                const voteCounts = { ... (liveVoteCounts[match.id] || {}) };
-                if (voteCounts[match.homeTeam] === undefined) voteCounts[match.homeTeam] = 0;
-                if (voteCounts[match.awayTeam] === undefined) voteCounts[match.awayTeam] = 0;
+                // Use optimized vote counts stored on the match document
+                const voteCounts = { ... (match.votes || {}) };
+                if (voteCounts[match.homeTeam] === undefined) voteCounts[match.homeTeam] = match.homeVotes || 0;
+                if (voteCounts[match.awayTeam] === undefined) voteCounts[match.awayTeam] = match.awayVotes || 0;
                 
                 const savedPrediction = currentPredictions.find(p => p.matchId === match.id);
                 const pendingPrediction = pendingPredictions[match.id];
@@ -1720,6 +2555,37 @@ function PredictorApp() {
                   }
                 }
                 
+                // Adjust vote counts for graph conversion (Live/Completed)
+                const adjustedVoteCounts = { ...voteCounts };
+                if (match.tossWinner) {
+                  const tossVotes = adjustedVoteCounts['TOSS_WINNER'] || 0;
+                  if (tossVotes > 0) {
+                    adjustedVoteCounts[match.tossWinner] = (adjustedVoteCounts[match.tossWinner] || 0) + tossVotes;
+                    adjustedVoteCounts['TOSS_WINNER'] = 0;
+                  }
+                }
+                if (match.battingFirst) {
+                  const bat1stVotes = adjustedVoteCounts['BATTING_FIRST'] || 0;
+                  if (bat1stVotes > 0) {
+                    adjustedVoteCounts[match.battingFirst] = (adjustedVoteCounts[match.battingFirst] || 0) + bat1stVotes;
+                    adjustedVoteCounts['BATTING_FIRST'] = 0;
+                  }
+                  const bat2ndVotes = adjustedVoteCounts['BATTING_SECOND'] || 0;
+                  if (bat2ndVotes > 0) {
+                    const battingSecondTeam = match.battingFirst === match.homeTeam ? match.awayTeam : match.homeTeam;
+                    adjustedVoteCounts[battingSecondTeam] = (adjustedVoteCounts[battingSecondTeam] || 0) + bat2ndVotes;
+                    adjustedVoteCounts['BATTING_SECOND'] = 0;
+                  }
+                }
+
+                // Calculate total votes for the bar based on adjusted categories
+                const finalDisplayedVotes = (adjustedVoteCounts[match.homeTeam] || 0) + 
+                                          (adjustedVoteCounts[match.awayTeam] || 0) + 
+                                          (adjustedVoteCounts['TOSS_WINNER'] || 0) + 
+                                          (adjustedVoteCounts['BATTING_FIRST'] || 0) + 
+                                          (adjustedVoteCounts['BATTING_SECOND'] || 0);
+                
+                const totalVotesForBar = finalDisplayedVotes || 1;
                 const totalVotes = Object.values(voteCounts).reduce((a, b) => a + (b as number), 0);
 
                 // Calculate live odds as (total - winners) / winners ratio
@@ -1732,10 +2598,11 @@ function PredictorApp() {
                 
                 return (
                   <motion.div 
-                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     key={match.id}
                     className={cn(
-                      "widget-container overflow-hidden transition-all",
+                      "widget-container glass-panel overflow-hidden transition-all duration-500",
                       effectiveStatus === 'LIVE' && "ring-2 ring-red-500/50 border-red-500/30 shadow-lg shadow-red-500/10"
                     )}
                   >
@@ -1788,7 +2655,7 @@ function PredictorApp() {
                         {/* Home Team */}
                         <div className={cn(
                           "flex-1 flex flex-col items-center gap-3 transition-opacity duration-300",
-                          match.status === 'COMPLETED' && match.winner !== match.homeTeam && match.winner !== 'DRAW' && "opacity-40 grayscale-[0.5]"
+                          (match.status === 'COMPLETED' || match.status === 'ABANDONED') && match.winner !== match.homeTeam && match.winner !== 'DRAW' && match.winner !== 'ABANDONED' && "opacity-40 grayscale-[0.5]"
                         )}>
                           <TeamLogo teamCode={match.homeTeam} size="lg" />
                           <div className="flex flex-col items-center">
@@ -1824,7 +2691,7 @@ function PredictorApp() {
                         {/* Away Team */}
                         <div className={cn(
                           "flex-1 flex flex-col items-center gap-3 transition-opacity duration-300",
-                          match.status === 'COMPLETED' && match.winner !== match.awayTeam && match.winner !== 'DRAW' && "opacity-40 grayscale-[0.5]"
+                          (match.status === 'COMPLETED' || match.status === 'ABANDONED') && match.winner !== match.awayTeam && match.winner !== 'DRAW' && match.winner !== 'ABANDONED' && "opacity-40 grayscale-[0.5]"
                         )}>
                           <TeamLogo teamCode={match.awayTeam} size="lg" />
                           <div className="flex flex-col items-center">
@@ -1854,22 +2721,117 @@ function PredictorApp() {
                         </div>
                       </div>
 
+                      {/* Live Score Summary & Toss Info */}
+                      {(effectiveStatus === 'LIVE' || effectiveStatus === 'COMPLETED' || effectiveStatus === 'ABANDONED') && (match.summary || match.tossWinner) && (
+                        <div className="px-2 mb-4 space-y-2">
+                          {match.summary && (
+                            <div className={cn(
+                              "px-3 py-2 rounded-lg text-xs font-medium text-center border",
+                              effectiveStatus === 'LIVE'
+                                ? "bg-red-500/10 border-red-500/20 text-red-300"
+                                : "bg-white/5 border-white/10 text-gray-400"
+                            )}>
+                              <Activity className="w-3 h-3 inline-block mr-1.5 -mt-0.5" />
+                              {match.summary}
+                            </div>
+                          )}
+                          {match.tossWinner && (
+                            <div className="flex items-center justify-center gap-3 text-[10px] text-gray-500">
+                              <span>Toss: <span className="text-cyan-400 font-bold">{match.tossWinner}</span></span>
+                              {match.battingFirst && (
+                                <span>Bat 1st: <span className="text-amber-400 font-bold">{match.battingFirst}</span></span>
+                              )}
+                            </div>
+                          )}
+
+                          {effectiveStatus === 'COMPLETED' && (match.winnerPoints !== undefined) && (
+                            <div className="p-2 rounded-lg bg-orange-500/5 border border-orange-500/10 flex flex-col gap-1.5 transition-all hover:bg-orange-500/10 mt-2">
+                               <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                     <Trophy className="w-3 h-3 text-[#FFD700]" />
+                                     <span className="text-[9px] font-black uppercase text-white tracking-widest">Points Logic</span>
+                                  </div>
+                                  <div className="flex items-center gap-1.5 bg-white/5 px-1.5 py-0.5 rounded text-[8px] font-mono text-gray-500 uppercase">
+                                     <Activity className="w-2.5 h-2.5" />
+                                     <span>Zero-Sum Pool</span>
+                                  </div>
+                               </div>
+                               <div className="flex items-center justify-between text-[8px] font-bold text-gray-400">
+                                  <div className="flex flex-col gap-0.5">
+                                    <span>Pool: {match.totalLosers || 0} pts (Losers) + {match.totalSkippersLosingPoints || 0} pts (Skips)</span>
+                                    <span className="text-[7px] text-gray-500 italic">Total 0 points net exchange</span>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-[#F27D26]">Winners: {match.totalWinners || 0}</div>
+                                    <div className="text-[7px] text-gray-500">Divisor</div>
+                                  </div>
+                               </div>
+                               <div className="flex items-center justify-between border-t border-white/5 pt-1.5">
+                                  <span className="text-[7px] text-gray-500 uppercase tracking-widest leading-none">Each Winner Gets</span>
+                                  <span className="text-sm font-black text-[#F27D26] tracking-tighter">+{match.winnerPoints?.toFixed(2)} <span className="text-[8px] text-gray-500 font-normal ml-0.5">PTS</span></span>
+                               </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
                       {/* Vote Progress Bar */}
-                      {totalVotes > 0 && (
+                      {finalDisplayedVotes > 0 && (
                         <div className="px-6 mb-4">
                           <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden flex">
+                            {/* Home Team */}
                             <div 
                               className="h-full bg-[#F27D26] transition-all duration-500 border-r border-black/20"
-                              style={{ width: `${(voteCounts[match.homeTeam] / totalVotes) * 100}%` }}
+                              style={{ width: `${((adjustedVoteCounts[match.homeTeam] || 0) / totalVotesForBar) * 100}%` }}
                             />
+                            {/* Away Team */}
                             <div 
-                              className="h-full bg-blue-500 transition-all duration-500"
-                              style={{ width: `${(voteCounts[match.awayTeam] / totalVotes) * 100}%` }}
+                              className="h-full bg-blue-500 transition-all duration-500 border-r border-black/20"
+                              style={{ width: `${((adjustedVoteCounts[match.awayTeam] || 0) / totalVotesForBar) * 100}%` }}
+                            />
+                            {/* Toss Winner */}
+                            <div 
+                              className="h-full bg-cyan-400 transition-all duration-500 border-r border-black/20"
+                              style={{ width: `${((adjustedVoteCounts['TOSS_WINNER'] || 0) / totalVotesForBar) * 100}%` }}
+                            />
+                            {/* Batting First */}
+                            <div 
+                              className="h-full bg-amber-400 transition-all duration-500 border-r border-black/20"
+                              style={{ width: `${((adjustedVoteCounts['BATTING_FIRST'] || 0) / totalVotesForBar) * 100}%` }}
+                            />
+                            {/* Batting Second */}
+                            <div 
+                              className="h-full bg-purple-400 transition-all duration-500"
+                              style={{ width: `${((adjustedVoteCounts['BATTING_SECOND'] || 0) / totalVotesForBar) * 100}%` }}
                             />
                           </div>
-                          <div className="flex justify-between mt-1 text-[8px] font-mono text-gray-500 uppercase tracking-tighter">
-                            <span>{(( (voteCounts[match.homeTeam] || 0) / totalVotes) * 100).toFixed(0)}% {match.homeTeam}</span>
-                            <span>{(( (voteCounts[match.awayTeam] || 0) / totalVotes) * 100).toFixed(0)}% {match.awayTeam}</span>
+                          <div className="grid grid-cols-2 gap-x-4 gap-y-1 mt-2 text-[7px] font-mono text-gray-500 uppercase tracking-tighter">
+                            <div className="flex justify-between items-center">
+                              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-[#F27D26]"></span>{match.homeTeam}</span>
+                              <span className="text-gray-400 font-bold">{adjustedVoteCounts[match.homeTeam] || 0} ({(( (adjustedVoteCounts[match.homeTeam] || 0) / totalVotesForBar) * 100).toFixed(0)}%)</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                              <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-blue-500"></span>{match.awayTeam}</span>
+                              <span className="text-gray-400 font-bold">{adjustedVoteCounts[match.awayTeam] || 0} ({(( (adjustedVoteCounts[match.awayTeam] || 0) / totalVotesForBar) * 100).toFixed(0)}%)</span>
+                            </div>
+                            {(voteCounts['TOSS_WINNER'] || 0) > 0 && (
+                              <div className="flex justify-between items-center cursor-pointer hover:text-cyan-400 transition-colors" onClick={() => setShowVoters({ matchId: match.id, teamCode: 'TOSS_WINNER' })}>
+                                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-cyan-400"></span>Toss</span>
+                                <span className="text-gray-400 font-bold">{adjustedVoteCounts['TOSS_WINNER'] || 0} ({(( (adjustedVoteCounts['TOSS_WINNER'] || 0) / totalVotesForBar) * 100).toFixed(0)}%)</span>
+                              </div>
+                            )}
+                            {(voteCounts['BATTING_FIRST'] || 0) > 0 && (
+                              <div className="flex justify-between items-center cursor-pointer hover:text-amber-400 transition-colors" onClick={() => setShowVoters({ matchId: match.id, teamCode: 'BATTING_FIRST' })}>
+                                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-amber-400"></span>Bat 1st</span>
+                                <span className="text-gray-400 font-bold">{adjustedVoteCounts['BATTING_FIRST'] || 0} ({(( (adjustedVoteCounts['BATTING_FIRST'] || 0) / totalVotesForBar) * 100).toFixed(0)}%)</span>
+                              </div>
+                            )}
+                            {(voteCounts['BATTING_SECOND'] || 0) > 0 && (
+                              <div className="flex justify-between items-center cursor-pointer hover:text-purple-400 transition-colors" onClick={() => setShowVoters({ matchId: match.id, teamCode: 'BATTING_SECOND' })}>
+                                <span className="flex items-center gap-1"><span className="w-1 h-1 rounded-full bg-purple-400"></span>Bat 2nd</span>
+                                <span className="text-gray-400 font-bold">{adjustedVoteCounts['BATTING_SECOND'] || 0} ({(( (adjustedVoteCounts['BATTING_SECOND'] || 0) / totalVotesForBar) * 100).toFixed(0)}%)</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       )}
@@ -1880,7 +2842,7 @@ function PredictorApp() {
                           <>
                           {/* Match Winner Prediction */}
                           <div>
-                            <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2">Who Wins?</p>
+                            <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-2">Pick the Winner</p>
                             <div className="grid grid-cols-2 gap-3 mb-3">
                               <button
                                 onClick={() => handlePredict(match.id, match.homeTeam)}
@@ -1905,141 +2867,119 @@ function PredictorApp() {
                                 {match.awayTeam}
                               </button>
                             </div>
-                            
-                            {/* Dynamic Winner Options */}
+
+                            {/* Toss-based Winner Options */}
                             {ENABLE_TOSS_PREDICTIONS && (
-                              <div className="grid grid-cols-3 gap-2">
-                                <button
-                                  onClick={() => handlePredict(match.id, 'TOSS_WINNER')}
-                                  className={cn(
-                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
-                                    prediction?.predictedWinner === 'TOSS_WINNER'
-                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
-                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                  )}
-                                >
-                                  Toss Winner
-                                </button>
-                                <button
-                                  onClick={() => handlePredict(match.id, 'BATTING_FIRST')}
-                                  className={cn(
-                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
-                                    prediction?.predictedWinner === 'BATTING_FIRST'
-                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
-                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                  )}
-                                >
-                                  Batting 1st
-                                </button>
-                                <button
-                                  onClick={() => handlePredict(match.id, 'BATTING_SECOND')}
-                                  className={cn(
-                                    "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
-                                    prediction?.predictedWinner === 'BATTING_SECOND'
-                                      ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400"
-                                      : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                  )}
-                                >
-                                  Batting 2nd
-                                </button>
-                              </div>
+                              <>
+                                <p className="text-[8px] font-bold uppercase text-gray-600 tracking-widest mb-1.5 text-center">Or predict by toss outcome</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                  <button
+                                    onClick={() => handlePredict(match.id, 'TOSS_WINNER')}
+                                    className={cn(
+                                      "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                      prediction?.predictedWinner === 'TOSS_WINNER'
+                                        ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-md shadow-indigo-500/10"
+                                        : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:border-indigo-500/30"
+                                    )}
+                                    title="Your pick resolves to whichever team wins the toss"
+                                  >
+                                    Toss Winner
+                                  </button>
+                                  <button
+                                    onClick={() => handlePredict(match.id, 'BATTING_FIRST')}
+                                    className={cn(
+                                      "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                      prediction?.predictedWinner === 'BATTING_FIRST'
+                                        ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-md shadow-indigo-500/10"
+                                        : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:border-indigo-500/30"
+                                    )}
+                                    title="Your pick resolves to whichever team bats first"
+                                  >
+                                    Bat 1st Wins
+                                  </button>
+                                  <button
+                                    onClick={() => handlePredict(match.id, 'BATTING_SECOND')}
+                                    className={cn(
+                                      "py-2 rounded-lg text-[10px] font-bold transition-all border uppercase",
+                                      prediction?.predictedWinner === 'BATTING_SECOND'
+                                        ? "bg-indigo-500/20 border-indigo-500/50 text-indigo-400 shadow-md shadow-indigo-500/10"
+                                        : "bg-white/5 border-white/10 text-gray-500 hover:bg-white/10 hover:border-indigo-500/30"
+                                    )}
+                                    title="Your pick resolves to whichever team bats second (chases)"
+                                  >
+                                    Bat 2nd Wins
+                                  </button>
+                                </div>
+                                {['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(prediction?.predictedWinner || '') && (
+                                  <p className="text-[8px] text-indigo-400/70 mt-1.5 text-center italic">
+                                    {prediction?.predictedWinner === 'TOSS_WINNER' && 'Your pick will resolve to the team that wins the toss'}
+                                    {prediction?.predictedWinner === 'BATTING_FIRST' && 'Your pick will resolve to the team that bats first'}
+                                    {prediction?.predictedWinner === 'BATTING_SECOND' && 'Your pick will resolve to the team that bats second (chases)'}
+                                  </p>
+                                )}
+                              </>
                             )}
                           </div>
 
-                          {/* Toss & Batting Choice Prediction */}
-                          {ENABLE_TOSS_PREDICTIONS && (
-                            <div className="pt-3 border-t border-white/5">
-                              <div className="grid grid-cols-2 gap-4">
-                                {/* Toss Winner */}
-                                <div>
-                                  <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-1.5">Toss Winner</p>
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'tossWinner', match.homeTeam)}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentTossWinner === match.homeTeam
-                                          ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      {match.homeTeam}
-                                    </button>
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'tossWinner', match.awayTeam)}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentTossWinner === match.awayTeam
-                                          ? "bg-cyan-500/20 border-cyan-500/50 text-cyan-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      {match.awayTeam}
-                                    </button>
-                                  </div>
-                                </div>
-                                {/* Bat / Bowl Choice */}
-                                <div>
-                                  <p className="text-[9px] font-bold uppercase text-gray-500 tracking-widest mb-1.5">Elects To</p>
-                                  <div className="flex gap-1.5">
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'battingChoice', 'BAT')}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentBattingChoice === 'BAT'
-                                          ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      Bat 1st
-                                    </button>
-                                    <button
-                                      onClick={() => handleTossPrediction(match.id, 'battingChoice', 'BOWL')}
-                                      className={cn(
-                                        "flex-1 py-1.5 rounded-lg text-[11px] font-bold transition-all border",
-                                        currentBattingChoice === 'BOWL'
-                                          ? "bg-amber-500/20 border-amber-500/50 text-amber-400"
-                                          : "bg-white/5 border-transparent text-gray-500 hover:bg-white/10"
-                                      )}
-                                    >
-                                      Bowl 1st
-                                    </button>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          )}
                           </>
                         ) : (
                           <div className="bg-white/5 rounded-xl p-4 border border-white/10">
-                            {match.status === 'COMPLETED' ? (
+                            {(match.status === 'COMPLETED' || match.status === 'ABANDONED') ? (
                               <div className="flex flex-col items-center gap-2">
-                                <span className="status-label">Winner</span>
+                                <span className="status-label">{match.status === 'ABANDONED' ? 'Status' : 'Winner'}</span>
                                 <div className="flex items-center gap-2 text-xl font-bold text-[#FFD700]">
-                                  <Trophy className="w-5 h-5" />
-                                  {match.winner}
+                                  {match.status === 'ABANDONED' ? (
+                                    <AlertCircle className="w-5 h-5 text-yellow-500" />
+                                  ) : (
+                                    <Trophy className="w-5 h-5" />
+                                  )}
+                                  {match.status === 'ABANDONED' ? 'MATCH ABANDONED' : match.winner}
                                 </div>
-                                {prediction && (
-                                  <div className={cn(
-                                    "mt-2 flex items-center gap-2 text-sm font-medium",
-                                    prediction.predictedWinner === match.winner ? "text-green-400" : "text-red-400"
-                                  )}>
-                                    {prediction.predictedWinner === match.winner ? (
-                                      <><CheckCircle2 className="w-4 h-4" /> Absolute Legend! 🏆</>
-                                    ) : (
-                                      <><XCircle className="w-4 h-4" /> Better luck next time, champ! 🤡</>
-                                    )}
-                                  </div>
-                                )}
-                                {/* Show toss prediction result */}
-                                {ENABLE_TOSS_PREDICTIONS && savedFullPred?.tossWinner && (
-                                  <div className="mt-2 flex items-center gap-3 text-[10px]">
-                                    <span className="text-gray-500">Toss: <span className="text-cyan-400 font-bold">{savedFullPred.tossWinner}</span></span>
-                                    {savedFullPred.battingChoice && (
-                                      <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
-                                    )}
-                                  </div>
-                                )}
+                                {prediction && (() => {
+                                  const resolvedTeam = savedFullPred ? resolvePredictedTeam(savedFullPred, match) : prediction.predictedWinner;
+                                  const isDynamic = ['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(savedFullPred?.predictedWinner || prediction.predictedWinner);
+                                  const isAbandoned = match.status === 'ABANDONED';
+                                  const isCorrect = !isAbandoned && resolvedTeam === match.winner;
+                                  
+                                  // Simple hash to pick a consistent message
+                                  const getMessage = (arr: string[], seed: string) => {
+                                    let hash = 0;
+                                    for (let i = 0; i < seed.length; i++) {
+                                      hash = ((hash << 5) - hash) + seed.charCodeAt(i);
+                                      hash |= 0;
+                                    }
+                                    return arr[Math.abs(hash) % arr.length];
+                                  };
+
+                                  const seed = `${match.id}-${user?.uid || 'guest'}`;
+
+                                  return (
+                                    <>
+                                      <div className={cn(
+                                        "mt-2 flex items-center gap-2 text-sm font-medium",
+                                        isAbandoned ? "text-yellow-400" : isCorrect ? "text-green-400" : "text-red-400"
+                                      )}>
+                                        {isAbandoned ? (
+                                          <><AlertCircle className="w-4 h-4" /> {getMessage(ABANDONED_MESSAGES, match.id)}</>
+                                        ) : isCorrect ? (
+                                          <><CheckCircle2 className="w-4 h-4" /> {getMessage(WIN_MESSAGES, seed)}</>
+                                        ) : (
+                                          <><XCircle className="w-4 h-4" /> {getMessage(LOSS_MESSAGES, seed)}</>
+                                        )}
+                                      </div>
+                                      {isDynamic && resolvedTeam && (
+                                        <p className="text-[10px] text-indigo-400 mt-1">
+                                          You picked <span className="font-bold">{savedFullPred?.predictedWinner || prediction.predictedWinner}</span> → resolved to <span className="font-bold">{resolvedTeam}</span>
+                                        </p>
+                                      )}
+                                      {!isDynamic && (
+                                        <p className="text-[10px] text-gray-500 mt-1">
+                                          You picked <span className="font-bold">{prediction.predictedWinner}</span>
+                                        </p>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                                 {/* Admin: Edit prediction on completed match */}
                                 {isAdminUser && showAdmin && (
                                   <div className="mt-3 pt-3 border-t border-white/10 w-full">
@@ -2075,18 +3015,23 @@ function PredictorApp() {
                               <div className="flex flex-col items-center gap-1">
                                 <AlertCircle className="w-5 h-5 text-gray-500 mb-1" />
                                 <span className="text-sm font-medium text-gray-400">Predictions Locked</span>
-                                {prediction && (
-                                  <span className="text-xs text-[#F27D26]">You picked {prediction.predictedWinner}</span>
-                                )}
-                                {/* Show toss prediction on locked matches */}
-                                {ENABLE_TOSS_PREDICTIONS && savedFullPred?.tossWinner && (
-                                  <div className="mt-1 flex items-center gap-3 text-[10px]">
-                                    <span className="text-gray-500">Toss: <span className="text-cyan-400 font-bold">{savedFullPred.tossWinner}</span></span>
-                                    {savedFullPred.battingChoice && (
-                                      <span className="text-gray-500">Elects: <span className="text-amber-400 font-bold">{savedFullPred.battingChoice === 'BAT' ? 'Bat 1st' : 'Bowl 1st'}</span></span>
-                                    )}
-                                  </div>
-                                )}
+                                {prediction && (() => {
+                                  const isDynamic = ['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(savedFullPred?.predictedWinner || prediction.predictedWinner);
+                                  const resolvedTeam = savedFullPred && (match.tossWinner || match.battingFirst) ? resolvePredictedTeam(savedFullPred, match) : null;
+                                  return (
+                                    <>
+                                      <span className="text-xs text-[#F27D26]">
+                                        You picked {isDynamic ? (savedFullPred?.predictedWinner || prediction.predictedWinner).replace('_', ' ') : prediction.predictedWinner}
+                                      </span>
+                                      {isDynamic && resolvedTeam && (
+                                        <span className="text-[10px] text-indigo-400">→ Resolves to <span className="font-bold">{resolvedTeam}</span></span>
+                                      )}
+                                      {isDynamic && !resolvedTeam && (
+                                        <span className="text-[10px] text-gray-500 italic">Waiting for toss result...</span>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>
@@ -2140,43 +3085,78 @@ function PredictorApp() {
 
                         {/* Admin Controls */}
                         {showAdmin && (
-                          <div className="mt-6 pt-6 border-t border-white/5">
-                            <div className="flex items-center justify-between mb-3">
-                              <p className="status-label">Admin: Set Result {match.status === 'COMPLETED' && '(Correction)'}</p>
+                          <div className="mt-6 pt-6 border-t border-white/5 space-y-4">
+                            <div className="flex items-center justify-between">
+                              <p className="status-label">Admin Controls</p>
+                              {match.status === 'UPCOMING' && (
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => fetchNonVoters(match.id)}
+                                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-white/5 text-gray-400 text-[9px] font-bold hover:bg-white/10 transition-colors"
+                                  >
+                                    <UserIcon className="w-3 h-3" />
+                                    View Non-Voters
+                                  </button>
+                                  <button
+                                    onClick={handleSendReminders}
+                                    disabled={sendingReminders}
+                                    className="flex items-center gap-1.5 px-2 py-1 rounded bg-indigo-500/10 text-indigo-400 text-[9px] font-bold hover:bg-indigo-500/20 transition-colors"
+                                  >
+                                    <Zap className={cn("w-3 h-3", sendingReminders && "animate-spin")} />
+                                    Send Reminders
+                                  </button>
+                                </div>
+                              )}
                             </div>
-                            <div className="flex gap-2">
-                              <button
-                                disabled={completingMatch}
-                                onClick={() => {
-                                  if (window.confirm(`Set ${match.homeTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`)) {
-                                    handleCompleteMatch(match, match.homeTeam);
-                                  }
-                                }}
-                                className={cn(
-                                  "flex-1 py-2 rounded-lg text-xs font-bold border disabled:opacity-50",
-                                  match.winner === match.homeTeam 
-                                    ? "bg-green-500 text-white border-green-500" 
-                                    : "bg-green-500/20 text-green-400 border-green-500/30"
-                                )}
-                              >
-                                {completingMatch ? 'Processing...' : `${match.homeTeam} Wins`}
-                              </button>
-                              <button
-                                disabled={completingMatch}
-                                onClick={() => {
-                                  if (window.confirm(`Set ${match.awayTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`)) {
-                                    handleCompleteMatch(match, match.awayTeam);
-                                  }
-                                }}
-                                className={cn(
-                                  "flex-1 py-2 rounded-lg text-xs font-bold border disabled:opacity-50",
-                                  match.winner === match.awayTeam 
-                                    ? "bg-green-500 text-white border-green-500" 
-                                    : "bg-green-500/20 text-green-400 border-green-500/30"
-                                )}
-                              >
-                                {completingMatch ? 'Processing...' : `${match.awayTeam} Wins`}
-                              </button>
+                            
+                            <div className="space-y-3">
+                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Set Result {match.status === 'COMPLETED' && '(Correction)'}</p>
+                              <div className="flex gap-2">
+                                <button
+                                  disabled={completingMatch}
+                                  onClick={() => {
+                                    setConfirmation({
+                                      title: "Set Winner",
+                                      message: `Set ${match.homeTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`,
+                                      confirmText: "Set Winner",
+                                      onConfirm: () => {
+                                        setConfirmation(null);
+                                        handleCompleteMatch(match, match.homeTeam);
+                                      }
+                                    });
+                                  }}
+                                  className={cn(
+                                    "flex-1 py-2 rounded-lg text-xs font-bold border disabled:opacity-50",
+                                    match.winner === match.homeTeam 
+                                      ? "bg-green-500 text-white border-green-500" 
+                                      : "bg-green-500/20 text-green-400 border-green-500/30"
+                                  )}
+                                >
+                                  {completingMatch ? 'Processing...' : `${match.homeTeam} Wins`}
+                                </button>
+                                <button
+                                  disabled={completingMatch}
+                                  onClick={() => {
+                                    setConfirmation({
+                                      title: "Set Winner",
+                                      message: `Set ${match.awayTeam} as winner of ${match.homeTeam} vs ${match.awayTeam}? This will calculate points for all users.`,
+                                      confirmText: "Set Winner",
+                                      onConfirm: () => {
+                                        setConfirmation(null);
+                                        handleCompleteMatch(match, match.awayTeam);
+                                      }
+                                    });
+                                  }}
+                                  className={cn(
+                                    "flex-1 py-2 rounded-lg text-xs font-bold border disabled:opacity-50",
+                                    match.winner === match.awayTeam 
+                                      ? "bg-green-500 text-white border-green-500" 
+                                      : "bg-green-500/20 text-green-400 border-green-500/30"
+                                  )}
+                                >
+                                  {completingMatch ? 'Processing...' : `${match.awayTeam} Wins`}
+                                </button>
+                              </div>
                             </div>
                           </div>
                         )}
@@ -2187,99 +3167,500 @@ function PredictorApp() {
               })}
             </div>
           </div>
-        ) : (
+        )}
+
+        {activeTab === 'leaderboard' && (
           <div className="space-y-6">
-            <h2 className="text-lg font-bold flex items-center gap-2 mb-4">
-              <Trophy className="w-5 h-5 text-[#F27D26]" />
-              Global Leaderboard
-            </h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold flex items-center gap-2">
+                <Trophy className="w-5 h-5 text-[#F27D26]" />
+                Global Leaderboard
+              </h2>
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 px-2 py-1 rounded bg-green-500/10 border border-green-500/20">
+                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+                  <span className="text-[9px] font-black text-green-400 uppercase tracking-widest">Live Updates</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Who's Hot Section */}
+            {users.some(u => u.title === "On Fire 🔥") && (
+              <div className="mb-6">
+                <p className="text-[10px] font-black uppercase text-orange-500 tracking-[0.2em] mb-3 flex items-center gap-2">
+                  <Flame className="w-3 h-3 fill-orange-500 animate-pulse" />
+                  Who's Hot Right Now
+                </p>
+                <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+                  {users.filter(u => u.title === "On Fire 🔥").slice(0, 5).map((u, i) => (
+                    <motion.div 
+                      key={u.uid} 
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: i * 0.1 }}
+                      className="flex-shrink-0 flex items-center gap-3 bg-white/5 border border-white/10 rounded-xl p-3 pr-4 fire-aura shimmer"
+                    >
+                      <div className="relative">
+                        <img src={u.photoURL} alt="" className="w-10 h-10 rounded-full border-2 border-orange-500/50 relative z-10" />
+                        <div className="absolute -bottom-1 -right-1 bg-orange-600 rounded-full p-1 z-20 shadow-lg shadow-orange-500/50">
+                          <Flame className="w-3 h-3 text-white fill-white" />
+                        </div>
+                      </div>
+                      <div className="relative z-10">
+                        <p className="text-xs font-black text-white leading-none mb-1 tracking-tight">{u.displayName.split(' ')[0]}</p>
+                        <p className="text-[8px] text-orange-400 font-bold uppercase tracking-widest bg-orange-500/10 px-1 rounded">On Fire!</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="widget-container overflow-hidden">
               <div className="divide-y divide-white/5">
                 {users.map((u, index) => {
                   const isTop3 = index < 3;
                   const badges = ['🥇', '🥈', '🥉'];
+                  const glowColors = ['shadow-[0_0_15px_rgba(255,215,0,0.2)]', 'shadow-[0_0_15px_rgba(192,192,192,0.15)]', 'shadow-[0_0_15px_rgba(205,127,50,0.15)]'];
                   
                   return (
-                    <div key={u.uid} className={cn(
-                      "p-4 flex items-center justify-between transition-colors",
-                      u.uid === user.uid ? "bg-[#F27D26]/5" : "hover:bg-white/[0.02]"
-                    )}>
-                      <div className="flex items-center gap-4">
-                        <div className="w-8 text-center font-mono text-gray-500 text-sm">
-                          {isTop3 ? badges[index] : index + 1}
-                        </div>
-                        <div className="relative">
-                          <img src={u.photoURL} alt="" className="w-10 h-10 rounded-full border border-white/10" />
-                          {u.uid === user.uid && (
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1A1D23]"></div>
-                          )}
-                        </div>
-                        <div>
-                          <div className="font-bold flex items-center gap-2">
-                            {u.displayName}
-                            {isTop3 && (
-                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/20 uppercase">
-                                Throws the party!
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-[10px] text-gray-500 uppercase tracking-wider">
-                            {u.skipsUsed || 0} Skips Used
-                          </div>
-                        </div>
-                      </div>
-                      
-                        <div className="text-right flex items-center gap-4">
-                        <div>
-                          <div className="text-lg font-black ipl-text-gradient">
-                            {u.totalPoints?.toFixed(1) || 0}
-                          </div>
-                          <div className="status-label text-[8px]">Points</div>
-                        </div>
-                        {isAdminUser && showAdmin && u.uid !== user.uid && (
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => handleResetUserPoints(u.uid)}
-                              className="p-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors"
-                              title="Reset Points"
-                            >
-                              <RotateCcw className="w-4 h-4" />
-                            </button>
-                            {(u.skipsUsed || 0) > 0 && (
-                              <button
-                                onClick={() => handleResetSkips(u.uid, u.displayName)}
-                                className="p-2 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors"
-                                title={`Reset Skips (${u.skipsUsed || 0} used)`}
-                              >
-                                <RefreshCw className="w-4 h-4" />
-                              </button>
-                            )}
-                            <button
-                              onClick={() => {
-                                setSelectedUserForAdmin(u);
-                                setActiveTab('matches');
-                                setPendingPredictions({});
-                                showToast(`Now managing predictions for ${u.displayName}`);
-                              }}
-                              className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
-                              title="Manage User Predictions"
-                            >
-                              <Settings className="w-4 h-4" />
-                            </button>
-                            <button
-                              onClick={() => setUserToDelete(u)}
-                              className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                              title="Delete User"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
+                    <motion.div 
+                      key={u.uid} 
+                      initial={{ opacity: 0, y: 15 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="border-b border-white/5 last:border-0"
+                    >
+                      <div 
+                        className={cn(
+                          "p-4 flex items-center justify-between transition-all cursor-pointer relative overflow-hidden",
+                          u.uid === user.uid ? "bg-[#F27D26]/5" : "hover:bg-white/[0.02]",
+                          expandedUserPoints === u.uid && "bg-white/[0.05]",
+                          isTop3 && glowColors[index],
+                          isTop3 && "top-3-glow shimmer"
                         )}
+                        onClick={() => {
+                          if (expandedUserPoints === u.uid) {
+                            setExpandedUserPoints(null);
+                          } else {
+                            setExpandedUserPoints(u.uid);
+                            fetchUserPredictionsForBreakdown(u.uid);
+                          }
+                        }}
+                      >
+                        <div className="flex items-center gap-4 relative z-10">
+                          <div className={cn(
+                            "w-8 text-center font-black text-sm",
+                            isTop3 ? "scale-125" : "font-mono text-gray-500"
+                          )}>
+                            {isTop3 ? badges[index] : index + 1}
+                          </div>
+                          <div className={cn(
+                            "relative",
+                            u.title === "On Fire 🔥" && "fire-aura p-0.5 rounded-full"
+                          )}>
+                            <img 
+                              src={u.photoURL} 
+                              alt="" 
+                              className={cn(
+                                "rounded-full border relative z-10",
+                                isTop3 ? "border-[#FFD700]/50 w-11 h-11" : "border-white/10 w-10 h-10"
+                              )} 
+                            />
+                            {u.uid === user.uid && (
+                              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-[#1A1D23] z-20"></div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-bold flex items-center gap-2">
+                              <span className={cn(isTop3 && "text-white text-base", u.uid === user.uid && "text-[#F27D26]")}>{u.displayName}</span>
+                              {u.title && (
+                                <span className={cn(
+                                  "text-[8px] px-1.5 py-0.5 rounded font-black uppercase tracking-tighter shimmer",
+                                  u.title === "On Fire 🔥" ? "bg-orange-600 text-white" : "bg-blue-500/10 text-blue-400 border border-blue-500/20"
+                                )}>
+                                  {u.title}
+                                </span>
+                              )}
+                              {isTop3 && !u.title && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/20 uppercase font-black">
+                                  Party Thrower! 🥳
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-[10px] text-gray-500 uppercase tracking-wider flex items-center gap-2 mt-0.5">
+                              <span className="flex items-center gap-1">
+                                {u.form && u.form.length > 0 ? (
+                                  <div className="flex gap-0.5 items-center mr-1">
+                                    {u.form.map((res, i) => (
+                                      <div 
+                                        key={i} 
+                                        className={cn(
+                                          "w-1.5 h-1.5 rounded-full",
+                                          res === 'W' ? "bg-green-500 shadow-[0_0_5px_rgba(34,197,94,0.5)]" : res === 'L' ? "bg-red-500" : "bg-gray-500"
+                                        )}
+                                        title={res === 'W' ? 'Win' : res === 'L' ? 'Loss' : 'Skip'}
+                                      />
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <span className={cn(u.skipsUsed >= 10 ? "text-red-400 font-bold" : "")}>{u.skipsUsed || 0} Skips</span>
+                              </span>
+                              <span className="w-1 h-1 rounded-full bg-white/20"></span>
+                              <span className="text-blue-400/60 lowercase italic">stats & insights</span>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="text-right flex items-center gap-4 relative z-10">
+                          <div>
+                            <div className={cn(
+                              "text-xl font-black",
+                              isTop3 ? "ipl-text-gradient drop-shadow-md text-2xl" : (u.totalPoints > 0 ? "text-white" : "text-gray-500")
+                            )}>
+                              {u.totalPoints?.toFixed(1) || 0}
+                            </div>
+                            <div className="status-label text-[8px] opacity-70">Points</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {expandedUserPoints === u.uid ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
+                            {isAdminUser && showAdmin && u.uid !== user.uid && (
+                              <>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); handleResetUserPoints(u.uid); }}
+                                  className="p-2 rounded-lg bg-orange-500/10 text-orange-400 hover:bg-orange-500/20 transition-colors"
+                                  title="Reset Points"
+                                >
+                                  <RotateCcw className="w-4 h-4" />
+                                </button>
+                                {(u.skipsUsed || 0) > 0 && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleResetSkips(u.uid, u.displayName); }}
+                                    className="p-2 rounded-lg bg-purple-500/10 text-purple-400 hover:bg-purple-500/20 transition-colors"
+                                    title={`Reset Skips (${u.skipsUsed || 0} used)`}
+                                  >
+                                    <RefreshCw className="w-4 h-4" />
+                                  </button>
+                                )}
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedUserForAdmin(u);
+                                    setActiveTab('matches');
+                                    setPendingPredictions({});
+                                    showToast(`Now managing predictions for ${u.displayName}`);
+                                  }}
+                                  className="p-2 rounded-lg bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-colors"
+                                  title="Manage User Predictions"
+                                >
+                                  <Settings className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); setUserToDelete(u); }}
+                                  className="p-2 rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                                  title="Delete User"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
+
+                      {/* Points Breakdown Dropdown */}
+                      <AnimatePresence>
+                        {expandedUserPoints === u.uid && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden bg-black/20"
+                          >
+                            <div className="p-4 pt-0 space-y-2">
+                              <div className="flex items-center justify-between py-2 border-b border-white/5">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-gray-500">Match-by-Match Breakdown</span>
+                                {fetchingUserPreds === u.uid && <RefreshCw className="w-3 h-3 text-[#F27D26] animate-spin" />}
+                              </div>
+                              
+                              {fetchingUserPreds === u.uid ? (
+                                <div className="flex flex-col items-center justify-center py-8 gap-2">
+                                  <RefreshCw className="w-4 h-4 text-[#F27D26] animate-spin" />
+                                  <span className="text-[10px] text-gray-500">Loading breakdown...</span>
+                                </div>
+                              ) : (
+                                <div className="space-y-1 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                                  {matches
+                                    .filter(m => m.status === 'COMPLETED' || m.status === 'LIVE' || (new Date(m.date).getTime() < Date.now() + 86400000))
+                                    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                                    .map(match => {
+                                      const pred = userPredictionsData[u.uid]?.find(p => p.matchId === match.id);
+                                      
+                                      // Resolve prediction locally to ensure "smart" resolution for all matches
+                                      const resolvedWinner = pred ? (pred.resolvedWinner || (
+                                        pred.predictedWinner === 'TOSS_WINNER' ? match.tossWinner :
+                                        pred.predictedWinner === 'BATTING_FIRST' ? match.battingFirst :
+                                        pred.predictedWinner === 'BATTING_SECOND' ? (match.battingFirst ? (match.battingFirst === match.homeTeam ? match.awayTeam : match.homeTeam) : undefined) :
+                                        pred.predictedWinner
+                                      )) : null;
+
+                                      const isCorrect = match.status === 'COMPLETED' && resolvedWinner === match.winner;
+                                      
+                                      // Use stored pointsEarned if available, otherwise calculate
+                                      let points = pred?.pointsEarned !== undefined ? pred.pointsEarned : 0;
+                                      let status = match.status === 'COMPLETED' ? (pred ? (isCorrect ? 'Correct' : 'Incorrect') : 'Not Predicted') : 'Pending';
+                                      
+                                      if (match.status === 'COMPLETED' && pred && pred.pointsEarned === undefined) {
+                                        if (isCorrect) {
+                                          // Fallback calculation if pointsEarned is missing
+                                          let basePoints = 0;
+                                          if (match.votes) {
+                                            const total = Object.values(match.votes).reduce((a, b) => a + b, 0);
+                                            const winners = match.votes[match.winner!] || 0;
+                                            if (winners > 0) basePoints = (total - winners) / winners;
+                                          }
+                                          
+                                          let multiplier = 1;
+                                          if (match.type === 'QUARTER_FINAL' || match.type === 'SEMI_FINAL') multiplier = 2;
+                                          if (match.type === 'FINAL') multiplier = 4;
+                                          
+                                          points = basePoints * multiplier;
+                                        } else {
+                                          points = -1.0;
+                                        }
+                                      } else if (match.status === 'COMPLETED' && !pred) {
+                                        // Not predicted handling
+                                        if (match.type === 'FINAL') {
+                                          points = -1.0;
+                                        } else {
+                                          points = u.skipsUsed > 0 ? 0.0 : -1.0;
+                                          if (points === 0) status = 'Skip Used';
+                                        }
+                                      }
+
+                                      return (
+                                        <div key={match.id} className="flex items-center justify-between p-2 rounded bg-white/5 border border-white/5">
+                                          <div className="flex flex-col gap-0.5">
+                                            <div className="text-[10px] font-bold">
+                                              {match.homeTeam} vs {match.awayTeam}
+                                            </div>
+                                            <div className="text-[8px] text-gray-500 flex items-center gap-1">
+                                              {pred ? (
+                                                <>
+                                                  <span>Picked: <span className="text-gray-300">{pred.predictedWinner.replace('_', ' ')}</span></span>
+                                                  {resolvedWinner && resolvedWinner !== pred.predictedWinner && (
+                                                    <span className="text-indigo-400/60">({resolvedWinner})</span>
+                                                  )}
+                                                </>
+                                              ) : (
+                                                <span className="text-red-400/60 italic">Not Predicted</span>
+                                              )}
+                                            </div>
+                                          </div>
+                                          <div className="text-right">
+                                            <div className={cn(
+                                              "text-xs font-black",
+                                              points > 0 ? "text-green-400" : points < 0 ? "text-red-400" : "text-gray-500"
+                                            )}>
+                                              {points > 0 ? `+${points.toFixed(1)}` : points < 0 ? `${points.toFixed(1)}` : '0.0'}
+                                            </div>
+                                            <div className={cn(
+                                              "text-[7px] uppercase tracking-tighter",
+                                              status === 'Correct' ? "text-green-500/70" : 
+                                              status === 'Incorrect' ? "text-red-500/70" : 
+                                              status === 'Skip Used' ? "text-yellow-500/70" :
+                                              "text-gray-600"
+                                            )}>
+                                              {status}
+                                            </div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                </div>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </motion.div>
                   );
                 })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'audit' && isAdminUser && (
+          <div className="space-y-8">
+            {/* Prediction Audit Log */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-[#F27D26]" />
+                  Admin Audit Log
+                </h2>
+                <button 
+                  onClick={fetchAuditLogs}
+                  disabled={loadingAudit}
+                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-colors"
+                >
+                  <RefreshCw className={cn("w-4 h-4", loadingAudit && "animate-spin")} />
+                </button>
+              </div>
+
+              <div className="widget-container overflow-hidden">
+                {loadingAudit ? (
+                  <div className="p-12 flex flex-col items-center justify-center gap-4">
+                    <RefreshCw className="w-8 h-8 text-[#F27D26] animate-spin" />
+                    <p className="text-gray-500 font-mono text-xs uppercase tracking-widest">Fetching Audit Records...</p>
+                  </div>
+                ) : auditLogs.length === 0 ? (
+                  <div className="p-12 text-center text-gray-500 font-mono text-xs uppercase tracking-widest">
+                    No audit records found
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">User</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Match</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Prediction</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Options & Status</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {auditLogs.map((log, i) => (
+                          <tr key={i} className="hover:bg-white/[0.01] transition-colors">
+                            <td className="p-4">
+                              <div className="flex items-center gap-3">
+                                <img src={log.userPhoto} alt="" className="w-6 h-6 rounded-full border border-white/10" />
+                                <span className="text-xs font-bold text-white">{log.userName}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-[10px] text-gray-400 font-mono uppercase">{log.matchDesc}</span>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[10px] text-white font-bold uppercase">
+                                  {log.predictedWinner === 'TOSS_WINNER' ? 'Toss Winner' :
+                                   log.predictedWinner === 'BATTING_FIRST' ? 'Batting First' :
+                                   log.predictedWinner === 'BATTING_SECOND' ? 'Batting Second' :
+                                   `Winner: ${TEAMS[log.predictedWinner as keyof typeof TEAMS]?.name || log.predictedWinner}`}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex flex-col gap-1.5">
+                                {log.optionsAvailable && (
+                                  <div className="flex flex-wrap gap-1">
+                                    {log.optionsAvailable.map((opt: string) => (
+                                      <span key={opt} className="text-[7px] px-1 py-0.5 rounded bg-white/5 text-gray-500 border border-white/5 uppercase">
+                                        {opt === 'TOSS_WINNER' ? 'Toss' : opt === 'BATTING_FIRST' ? 'Bat1' : opt === 'BATTING_SECOND' ? 'Bat2' : opt}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                                {log.initialStatus && (
+                                  <span className={cn(
+                                    "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded w-fit",
+                                    log.initialStatus === 'LIVE' ? "bg-red-500/10 text-red-400" :
+                                    log.initialStatus === 'COMPLETED' ? "bg-green-500/10 text-green-400" :
+                                    "bg-blue-500/10 text-blue-400"
+                                  )}>
+                                    {log.initialStatus}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex flex-col">
+                                <span className="text-[10px] text-gray-400 font-mono">{format(new Date(log.timestamp), 'MMM dd, HH:mm')}</span>
+                                <span className="text-[8px] text-gray-600 font-mono uppercase">{format(new Date(log.timestamp), 'yyyy')}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* System Error Logs */}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <AlertCircle className="w-5 h-5 text-red-500" />
+                  System Error Logs
+                </h2>
+                <button 
+                  onClick={fetchSystemLogs}
+                  disabled={loadingSystemLogs}
+                  className="p-2 rounded-lg bg-white/5 text-gray-400 hover:text-white transition-colors"
+                >
+                  <RefreshCw className={cn("w-4 h-4", loadingSystemLogs && "animate-spin")} />
+                </button>
+              </div>
+
+              <div className="widget-container overflow-hidden">
+                {loadingSystemLogs ? (
+                  <div className="p-12 flex flex-col items-center justify-center gap-4">
+                    <RefreshCw className="w-8 h-8 text-red-500 animate-spin" />
+                    <p className="text-gray-500 font-mono text-xs uppercase tracking-widest">Fetching System Logs...</p>
+                  </div>
+                ) : systemLogs.length === 0 ? (
+                  <div className="p-12 text-center text-gray-500 font-mono text-xs uppercase tracking-widest">
+                    No error logs found
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="border-b border-white/5 bg-white/[0.02]">
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">User</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Operation</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Error Message</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Path</th>
+                          <th className="p-4 text-[10px] font-bold uppercase text-gray-500 tracking-wider">Time</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/5">
+                        {systemLogs.map((log, i) => (
+                          <tr key={i} className="hover:bg-white/[0.01] transition-colors">
+                            <td className="p-4">
+                              <div className="flex flex-col">
+                                <span className="text-xs font-bold text-gray-300">{log.authInfo?.email || 'Anonymous'}</span>
+                                <span className="text-[9px] text-gray-500 font-mono">{log.authInfo?.userId?.slice(0, 8)}...</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-xs font-bold uppercase text-indigo-400">{log.operationType}</span>
+                            </td>
+                            <td className="p-4">
+                              <div className="max-w-xs">
+                                <p className="text-xs text-red-400 font-medium break-words">{log.error}</p>
+                                {log.userAgent && (
+                                  <p className="text-[8px] text-gray-600 mt-1 truncate" title={log.userAgent}>{log.userAgent}</p>
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-xs font-mono text-gray-500">{log.path}</span>
+                            </td>
+                            <td className="p-4">
+                              <span className="text-[10px] font-mono text-gray-500">{format(parseISO(log.timestamp), 'MMM d, HH:mm:ss')}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2318,14 +3699,14 @@ function PredictorApp() {
       )}
 
       {/* Floating Save Button */}
-      {(Object.keys(pendingPredictions).length > 0 || Object.keys(pendingToss).length > 0) && (
+      {Object.keys(pendingPredictions).length > 0 && (
         <motion.div
           initial={{ y: 100, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           className="fixed bottom-28 left-1/2 -translate-x-1/2 z-[60] flex flex-col items-center gap-3"
         >
           <button
-            onClick={() => { setPendingPredictions({}); setPendingToss({}); }}
+            onClick={() => setPendingPredictions({})}
             className="px-4 py-2 rounded-xl bg-white/10 text-gray-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/20 transition-all border border-white/10"
           >
             Clear All Changes
@@ -2344,7 +3725,7 @@ function PredictorApp() {
               <Save className="w-5 h-5" />
             )}
             <span className="uppercase tracking-widest text-sm font-black">
-              {savingPredictions ? 'Saving...' : `Save ${Object.keys(pendingPredictions).length + (ENABLE_TOSS_PREDICTIONS ? Object.keys(pendingToss).length : 0)} Changes`}
+              {savingPredictions ? 'Saving...' : `Save ${Object.keys(pendingPredictions).length} Changes`}
             </span>
           </button>
         </motion.div>
@@ -2375,18 +3756,19 @@ function PredictorApp() {
                   <option value="UPCOMING">Upcoming</option>
                   <option value="LIVE">Live</option>
                   <option value="COMPLETED">Completed</option>
+                  <option value="ABANDONED">Abandoned</option>
                 </select>
               </div>
 
-              {editingMatch.status === 'COMPLETED' && (
+              {(editingMatch.status === 'COMPLETED' || editingMatch.status === 'ABANDONED') && (
                 <div>
-                  <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Winner</label>
+                  <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">{editingMatch.status === 'ABANDONED' ? 'Result Type' : 'Winner'}</label>
                   <select 
                     value={editingMatch.winner || ''}
                     onChange={(e) => setEditingMatch({ ...editingMatch, winner: e.target.value })}
                     className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
                   >
-                    <option value="">Select Winner</option>
+                    <option value="">Select Option</option>
                     <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
                     <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
                     <option value="DRAW">Draw</option>
@@ -2395,7 +3777,7 @@ function PredictorApp() {
                 </div>
               )}
 
-              {(editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED') && (
+              {(editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'ABANDONED') && (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">{editingMatch.homeTeam} Score</label>
@@ -2417,34 +3799,43 @@ function PredictorApp() {
                       placeholder="e.g. 172/8"
                     />
                   </div>
-                  {ENABLE_TOSS_PREDICTIONS && (
-                    <>
-                      <div>
-                        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Toss Winner</label>
-                        <select
-                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
-                          value={editingMatch.tossWinner || ''}
-                          onChange={(e) => setEditingMatch({ ...editingMatch, tossWinner: e.target.value })}
-                        >
-                          <option value="">Select Toss Winner</option>
-                          <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
-                          <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Batting First</label>
-                        <select
-                          className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
-                          value={editingMatch.battingFirst || ''}
-                          onChange={(e) => setEditingMatch({ ...editingMatch, battingFirst: e.target.value })}
-                        >
-                          <option value="">Select Batting First</option>
-                          <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
-                          <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
-                        </select>
-                      </div>
-                    </>
-                  )}
+                  <div>
+                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Toss Winner</label>
+                    <select
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                      value={editingMatch.tossWinner || ''}
+                      onChange={(e) => setEditingMatch({ ...editingMatch, tossWinner: e.target.value })}
+                    >
+                      <option value="">Select Toss Winner</option>
+                      <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
+                      <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Batting First</label>
+                    <select
+                      className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                      value={editingMatch.battingFirst || ''}
+                      onChange={(e) => setEditingMatch({ ...editingMatch, battingFirst: e.target.value })}
+                    >
+                      <option value="">Select Batting First</option>
+                      <option value={editingMatch.homeTeam}>{TEAMS[editingMatch.homeTeam as keyof typeof TEAMS]?.name}</option>
+                      <option value={editingMatch.awayTeam}>{TEAMS[editingMatch.awayTeam as keyof typeof TEAMS]?.name}</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
+              {(editingMatch.status === 'LIVE' || editingMatch.status === 'COMPLETED' || editingMatch.status === 'ABANDONED') && (
+                <div>
+                  <label className="block text-[10px] uppercase text-gray-500 font-bold mb-1">Match Summary</label>
+                  <input
+                    type="text"
+                    value={editingMatch.summary || ''}
+                    onChange={(e) => setEditingMatch({ ...editingMatch, summary: e.target.value })}
+                    className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm focus:outline-none focus:border-[#F27D26]"
+                    placeholder="e.g. CSK won by 5 wickets. Ruturaj scored 82*"
+                  />
                 </div>
               )}
 
@@ -2506,44 +3897,61 @@ function PredictorApp() {
                 </div>
               </div>
 
-              <div className="pt-4 flex gap-3">
-                <button 
-                  onClick={() => setEditingMatch(null)}
-                  className="flex-1 py-2 rounded-lg bg-white/5 text-gray-400 font-bold text-sm hover:bg-white/10 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={async () => {
-                    if (editingMatch.status === 'COMPLETED' && editingMatch.winner) {
-                      // handleCompleteMatch handles its own confirmation dialogs internally
-                      await handleCompleteMatch(editingMatch, editingMatch.winner);
-                      setEditingMatch(null);
-                    } else {
-                      await handleUpdateMatch(editingMatch.id, {
-                        status: editingMatch.status,
-                        winner: editingMatch.winner,
-                        homeScore: editingMatch.homeScore,
-                        awayScore: editingMatch.awayScore,
-                        tossWinner: editingMatch.tossWinner,
-                        battingFirst: editingMatch.battingFirst,
-                        date: editingMatch.date,
-                        dateIST: editingMatch.dateIST,
-                        odds: editingMatch.odds
-                      });
-                      setEditingMatch(null);
-                    }
-                  }}
-                  disabled={completingMatch || autoUpdating}
-                  className="flex-1 py-2 rounded-lg bg-[#F27D26] text-white font-bold text-sm hover:bg-[#F27D26]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  {completingMatch ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : 'Save Changes'}
-                </button>
+              <div className="pt-4 flex flex-col gap-3">
+                <div className="flex gap-3">
+                  <button 
+                    onClick={() => setEditingMatch(null)}
+                    className="flex-1 py-2 rounded-lg bg-white/5 text-gray-400 font-bold text-sm hover:bg-white/10 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={async () => {
+                      if (editingMatch.status === 'COMPLETED' && editingMatch.winner) {
+                        // handleCompleteMatch handles its own confirmation dialogs internally
+                        await handleCompleteMatch(editingMatch, editingMatch.winner);
+                        setEditingMatch(null);
+                      } else {
+                        await handleUpdateMatch(editingMatch.id, {
+                          status: editingMatch.status,
+                          winner: editingMatch.winner || null,
+                          homeScore: editingMatch.homeScore || null,
+                          awayScore: editingMatch.awayScore || null,
+                          tossWinner: editingMatch.tossWinner || null,
+                          battingFirst: editingMatch.battingFirst || null,
+                          summary: editingMatch.summary || null,
+                          date: editingMatch.date,
+                          dateIST: editingMatch.dateIST || null,
+                          odds: editingMatch.odds || null
+                        });
+                        setEditingMatch(null);
+                      }
+                    }}
+                    disabled={completingMatch || autoUpdating}
+                    className="flex-1 py-2 rounded-lg bg-[#F27D26] text-white font-bold text-sm hover:bg-[#F27D26]/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {completingMatch ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : 'Save Changes'}
+                  </button>
+                </div>
+                
+                {(editingMatch.status === 'COMPLETED' || editingMatch.status === 'ABANDONED') && (
+                  <button 
+                    onClick={async () => {
+                      if (window.confirm("Are you sure you want to reset this match to LIVE? This will clear the winner and scores. You will need to recalculate points afterward.")) {
+                        await handleResetMatch(editingMatch.id);
+                        setEditingMatch(null);
+                      }
+                    }}
+                    className="w-full py-2 rounded-lg bg-red-500/10 text-red-400 font-bold text-sm hover:bg-red-500/20 transition-colors border border-red-500/20"
+                  >
+                    Reset to LIVE Status
+                  </button>
+                )}
               </div>
             </div>
           </motion.div>
@@ -2597,7 +4005,11 @@ function PredictorApp() {
             <div className="p-4 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <TeamLogo teamCode={showVoters.teamCode} size="sm" />
-                <h3 className="font-bold text-sm">Voted for {showVoters.teamCode}</h3>
+                <h3 className="font-bold text-sm">
+                  Voted for {['TOSS_WINNER', 'BATTING_FIRST', 'BATTING_SECOND'].includes(showVoters.teamCode) 
+                    ? showVoters.teamCode.replace('_', ' ') 
+                    : showVoters.teamCode}
+                </h3>
               </div>
               <button onClick={() => setShowVoters(null)} className="p-1 text-gray-400 hover:text-white">
                 <X className="w-5 h-5" />
@@ -2633,6 +4045,69 @@ function PredictorApp() {
         </div>
       )}
 
+      {showNonVoters && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="bg-[#151619] border border-white/10 rounded-2xl w-full max-w-sm overflow-hidden shadow-2xl"
+          >
+            <div className="p-4 border-b border-white/5 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-yellow-500" />
+                <h3 className="font-bold text-sm">Users who haven't predicted</h3>
+              </div>
+              <button onClick={() => setShowNonVoters(null)} className="p-1 text-gray-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-2 max-h-[300px] overflow-y-auto">
+              {loadingNonVoters ? (
+                <div className="flex flex-col items-center justify-center p-8 gap-3">
+                  <RefreshCw className="w-6 h-6 text-[#F27D26] animate-spin" />
+                  <span className="text-xs text-gray-500">Loading...</span>
+                </div>
+              ) : nonVoters.length > 0 ? (
+                <div className="space-y-1">
+                  {nonVoters.map((voter) => (
+                    <div key={voter.uid} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5">
+                      {voter.photoURL ? (
+                        <img src={voter.photoURL} alt="" className="w-8 h-8 rounded-full border border-white/10" />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                          <UserIcon className="w-4 h-4 text-gray-400" />
+                        </div>
+                      )}
+                      <div className="flex flex-col flex-1">
+                        <span className="text-sm font-medium">{voter.displayName}</span>
+                        <span className="text-[10px] text-gray-500">{voter.email || 'No email'}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-8 text-center text-gray-500 text-sm">Everyone has predicted!</div>
+              )}
+            </div>
+            {nonVoters.length > 0 && (
+              <div className="p-4 border-t border-white/5">
+                <button
+                  onClick={() => {
+                    const match = matches.find(m => m.id === showNonVoters);
+                    if (match) handleSendTargetedReminders(match, nonVoters);
+                  }}
+                  disabled={sendingReminders}
+                  className="w-full py-2.5 rounded-xl bg-indigo-500 text-white text-xs font-bold hover:bg-indigo-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Zap className={cn("w-4 h-4", sendingReminders && "animate-spin")} />
+                  Send Reminders to {nonVoters.length} Users
+                </button>
+              </div>
+            )}
+          </motion.div>
+        </div>
+      )}
+
       {/* Bottom Navigation */}
       <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[calc(100%-2rem)] max-w-md bg-[#1A1D23]/90 backdrop-blur-xl border border-white/10 rounded-2xl p-2 flex gap-2 shadow-2xl z-50">
         <button 
@@ -2655,6 +4130,18 @@ function PredictorApp() {
           <Trophy className="w-4 h-4" />
           Leaderboard
         </button>
+        {isAdminUser && (
+          <button 
+            onClick={() => setActiveTab('audit')}
+            className={cn(
+              "flex-1 py-3 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all",
+              activeTab === 'audit' ? "bg-[#F27D26] text-white" : "text-gray-400 hover:text-white"
+            )}
+          >
+            <Activity className="w-4 h-4" />
+            Audit
+          </button>
+        )}
       </nav>
 
       <footer className="max-w-4xl mx-auto p-8 mt-12 border-t border-white/5 text-center space-y-4">

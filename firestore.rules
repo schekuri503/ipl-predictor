@@ -6,10 +6,10 @@
 // Document ID: {userId}
 // Fields:
 //   - uid: string (required) - The user's unique ID
-//   - displayName: string (required) - The user's display name
+//   - displayName: string (required) - The user's display name (1-100 chars)
 //   - photoURL: string (optional) - URL to the user's profile photo
-//   - totalPoints: number (required) - The user's total points
-//   - skipsUsed: number (required) - Number of skips used by the user
+//   - totalPoints: number (required) - The user's total points (>= 0)
+//   - skipsUsed: number (required) - Number of skips used by the user (>= 0)
 //   - role: string (required) - User role ('admin' or 'user')
 //
 // Collection: matches
@@ -23,6 +23,9 @@
 //   - status: string (required) - 'UPCOMING', 'LIVE', 'COMPLETED'
 //   - winner: string (optional) - Winning team code
 //   - type: string (required) - 'REGULAR', 'QUARTER_FINAL', 'SEMI_FINAL', 'FINAL'
+//   - votes: map (optional) - Map of team codes to vote counts
+//   - homeVotes: number (optional) - Legacy field
+//   - awayVotes: number (optional) - Legacy field
 //
 // Collection: predictions
 // Document ID: {userId}_{matchId}
@@ -30,8 +33,20 @@
 //   - id: string (required) - Prediction ID (matches document ID)
 //   - userId: string (required) - ID of the user who made the prediction
 //   - matchId: string (required) - ID of the match
-//   - predictedWinner: string (required) - Team code of the predicted winner
-//   - timestamp: string (required, ISO 8601) - When the prediction was made
+//   - predictedWinner: string (required) - Team code or dynamic pick (TOSS_WINNER, BATTING_FIRST, BATTING_SECOND)
+//   - timestamp: string (required, ISO 8601)
+//   - optionsAvailable: list (optional) - List of options available at the time
+//   - initialStatus: string (optional) - Match status at the time
+//
+// Collection: system_logs
+// Document ID: auto-generated
+// Fields:
+//   - error: string (required)
+//   - operationType: string (required)
+//   - path: string (optional)
+//   - authInfo: map (required)
+//   - timestamp: string (required, ISO 8601)
+//   - userAgent: string (optional)
 //
 // ===============================================================
 
@@ -55,7 +70,7 @@ service cloud.firestore {
       return isAuthenticated() && 
         ((exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
-         (request.auth.token.email == "s.chaitanya.503@gmail.com" && request.auth.token.email_verified == true));
+         (request.auth.token.email == "s.chaitanya.503@gmail.com"));
     }
 
     function hasRequiredFields(fields) {
@@ -64,6 +79,18 @@ service cloud.firestore {
 
     function hasOnlyAllowedFields(fields) {
       return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function isValidDateString(dateStr) {
+      return dateStr is string && dateStr.matches("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}.*Z?$");
     }
 
     // ===============================================================
@@ -77,21 +104,37 @@ service cloud.firestore {
         (request.resource.data.role == 'user' || isAdmin());
       allow update: if isAuthenticated() && 
         isValidUser(request.resource.data, userId) &&
-        ((isOwner(userId) && request.resource.data.role == resource.data.role) || isAdmin());
+        ((isOwner(userId) && 
+          request.resource.data.role == resource.data.role && 
+          request.resource.data.uid == resource.data.uid) || isAdmin());
       allow delete: if isAdmin();
     }
 
     function isValidUser(data, userId) {
-      return data.uid == userId &&
-             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() < 100 &&
+      return hasRequiredFields(['uid', 'displayName', 'totalPoints', 'skipsUsed', 'role']) &&
+             data.uid == userId &&
+             data.displayName is string && data.displayName.size() > 0 && data.displayName.size() <= 100 &&
              data.totalPoints is number &&
-             data.skipsUsed is number &&
-             data.role in ['admin', 'user'];
+             data.skipsUsed is number && data.skipsUsed >= 0 &&
+             data.role in ['admin', 'user'] &&
+             (!('photoURL' in data) || (isValidUrl(data.photoURL) && data.photoURL.size() < 500));
     }
 
     match /matches/{matchId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow update: if isAuthenticated() && 
+        (isAdmin() || (
+          // Regular users can only update vote-related fields
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes', 'homeVotes', 'awayVotes']) &&
+          isValidMatchUpdate(request.resource.data)
+        ));
+      allow create, delete: if isAdmin();
+    }
+
+    function isValidMatchUpdate(data) {
+      return (!('votes' in data) || (data.votes is map && data.votes.size() <= 20)) &&
+             (!('homeVotes' in data) || (data.homeVotes is number && data.homeVotes >= 0)) &&
+             (!('awayVotes' in data) || (data.awayVotes is number && data.awayVotes >= 0));
     }
 
     match /predictions/{predictionId} {
@@ -100,7 +143,11 @@ service cloud.firestore {
         isValidPrediction(request.resource.data, predictionId);
       allow update: if isAuthenticated() && 
         isValidPrediction(request.resource.data, predictionId) &&
-        (isOwner(resource.data.userId) || isAdmin());
+        (isOwner(resource.data.userId) || isAdmin()) &&
+        // Immutable fields
+        request.resource.data.userId == resource.data.userId &&
+        request.resource.data.matchId == resource.data.matchId &&
+        request.resource.data.id == resource.data.id;
       allow delete: if isOwner(resource.data.userId) || isAdmin();
     }
 
@@ -108,10 +155,42 @@ service cloud.firestore {
       return hasRequiredFields(['id', 'userId', 'matchId', 'predictedWinner', 'timestamp']) &&
              data.id == id &&
              (data.userId == request.auth.uid || isAdmin()) &&
-             data.matchId is string && data.matchId.size() > 0 &&
-             data.predictedWinner is string && data.predictedWinner.size() > 0 &&
-             data.timestamp is string &&
-             id == data.userId + "_" + data.matchId;
+             data.matchId is string && data.matchId.size() > 0 && data.matchId.size() < 100 &&
+             data.predictedWinner is string && data.predictedWinner.size() > 0 && data.predictedWinner.size() < 100 &&
+             isValidDateString(data.timestamp) &&
+             id == data.userId + "_" + data.matchId &&
+             (!('optionsAvailable' in data) || (data.optionsAvailable is list && data.optionsAvailable.size() <= 20)) &&
+             (!('initialStatus' in data) || (data.initialStatus is string && data.initialStatus.size() < 100)) &&
+             (!('resolvedWinner' in data) || (data.resolvedWinner == null || (data.resolvedWinner is string && data.resolvedWinner.size() < 100))) &&
+             (!('pointsEarned' in data) || (data.pointsEarned is number));
+    }
+
+    match /mail/{mailId} {
+      allow create: if isAdmin() && isValidMail(request.resource.data);
+    }
+
+    function isValidMail(data) {
+      return hasRequiredFields(['to', 'message']) &&
+             data.to is string && data.to.size() < 200 &&
+             data.message is map &&
+             data.message.keys().hasAll(['subject', 'html']) &&
+             data.message.subject is string && data.message.subject.size() < 200 &&
+             data.message.html is string && data.message.html.size() < 10000;
+    }
+
+    match /system_logs/{logId} {
+      allow read: if isAdmin();
+      allow create: if isAuthenticated() && isValidSystemLog(request.resource.data);
+    }
+
+    function isValidSystemLog(data) {
+      return hasRequiredFields(['error', 'operationType', 'authInfo', 'timestamp']) &&
+             data.error is string && data.error.size() < 2000 &&
+             data.operationType is string && data.operationType.size() < 100 &&
+             data.authInfo is map &&
+             isValidDateString(data.timestamp) &&
+             (!('path' in data) || (data.path is string && data.path.size() < 500)) &&
+             (!('userAgent' in data) || (data.userAgent is string && data.userAgent.size() < 500));
     }
   }
 }

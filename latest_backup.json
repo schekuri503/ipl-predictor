@@ -1,0 +1,3804 @@
+{
+  "timestamp": "2026-04-07T19:37:05.948Z",
+  "users": [
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "role": "user",
+      "totalPoints": -1.6619047619047616,
+      "uid": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "skipsUsed": 1,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLue_ZUzCqpWUcxoKC1Ig4Xtoee3cvGPhyHp8K93Jzbnx0pEwnK=s96-c",
+      "displayName": "Aravind Mathukumalli"
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "role": "user",
+      "uid": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "totalPoints": -1,
+      "skipsUsed": 6,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocKroCbVx8CbDh7suwxd_il7aWhbArXItjz-PT2pcD24asiPrA=s96-c",
+      "displayName": "Srinivas C"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocJgQYy4nrHUgRrVMXlLBiw8w_BZ1p59RALo9vQCROHEPIkhJOYY=s96-c",
+      "email": "siddharthkallem@gmail.com",
+      "displayName": "Siddharth Kallem",
+      "skipsUsed": 2,
+      "role": "user",
+      "totalPoints": 3.5857142857142854,
+      "uid": "CCwF7fOXwVRPzapTxQQJJ17hhky2"
+    },
+    {
+      "id": "Jk1UxEiJolabufAWBJ7o3yNZWec2",
+      "email": "karthikramya8082@gmail.com",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocI8MyYf7p4TqSofgJUpCR4XwZR0EeT8P2Xg1FTgLR-2bvcbDQ=s96-c",
+      "displayName": "karthikeyan balaram",
+      "role": "user",
+      "uid": "Jk1UxEiJolabufAWBJ7o3yNZWec2",
+      "totalPoints": -0.5,
+      "skipsUsed": 8
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "displayName": "Sanagapalli",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLCX9ttAwNDfd65pN8NjOxUdt_BFab9zNZ4_3SYqLnGDLuOTQ=s96-c",
+      "skipsUsed": 2,
+      "uid": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "totalPoints": 0.37142857142857144,
+      "role": "user"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "displayName": "Narsi Kallem",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocICdJJKPDhF1iYXxDYfi-UT8hIT0Bll35Dp-eUAEzx7nZzuBu1O=s96-c",
+      "skipsUsed": 0,
+      "uid": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "totalPoints": 3.852380952380953,
+      "role": "user"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocIVFmLrKVSZIZlyGeRXS8xh_0aoJceDhnJSuEF2NtlMFwUg4w=s96-c",
+      "email": "bhogavalli.suresh@gmail.com",
+      "displayName": "Bhogavalli Suresh",
+      "role": "user",
+      "uid": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "totalPoints": 4.935714285714286,
+      "skipsUsed": 1
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "role": "user",
+      "totalPoints": -2.011904761904762,
+      "uid": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "skipsUsed": 1,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLLodYlC8Uv521mMdWd6kLO9jDq8-HD91Wq0wlo-z7nKLdXlqdv=s96-c",
+      "displayName": "Siva Kumar Cheekula"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "displayName": "Sreedhar Narsini",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocK0E77aEwtq7ckFuDa67V9rdYZyBAA7n8Sh0Vlz94luS2VaYA=s96-c",
+      "email": "sreedhar.narsini@gmail.com",
+      "totalPoints": -7.5,
+      "uid": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "role": "user",
+      "skipsUsed": 3
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "skipsUsed": 6,
+      "totalPoints": -0.7857142857142857,
+      "uid": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "role": "user",
+      "displayName": "Teja Bikkina",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocKDY0hyPTKMc3c2jsSRJTReg9kqDTpltBws-aV0GWh-OGfX4w=s96-c",
+      "email": "tejabikkina9@gmail.com"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "displayName": "siva madala",
+      "email": "siva.madala4@gmail.com",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocKP5fTzF8HrzKxmuE_LFg7sob0JiVRFnnHs1vAvnXAV91IL-w=s96-c",
+      "skipsUsed": 3,
+      "uid": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "totalPoints": -1.8857142857142855,
+      "role": "user"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "skipsUsed": 1,
+      "role": "user",
+      "totalPoints": 2.885714285714286,
+      "uid": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLTsrRtsakB1OFjwwWKs0n11on4pSTkeY0Akq4XdutkD2dPT34=s96-c",
+      "displayName": "Sarath Hari"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "displayName": "siva chaitanya chekuri",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocJN7XDYgQr-7R78lvdOgv3OMi4DoB2uwT5Hwdt2XW8R5zZY5GNG=s96-c",
+      "email": "s.chaitanya.503@gmail.com",
+      "emailVerified": true,
+      "skipsUsed": 0,
+      "totalPoints": -0.2857142857142856,
+      "uid": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "role": "admin"
+    }
+  ],
+  "predictions": [
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_1",
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_1",
+      "timestamp": "2026-03-28T13:49:21.492Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "pointsEarned": -1,
+      "resolvedWinner": "SRH"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_10",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "LSG",
+      "pointsEarned": 1.6666666666666667,
+      "predictedWinner": "LSG",
+      "matchId": "ipl_2026_10",
+      "optionsAvailable": [
+        "SRH",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-05T03:33:04.064Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_12",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "KKR",
+      "resolvedFrom": "TOSS_WINNER",
+      "optionsAvailable": [
+        "KKR",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_12",
+      "timestamp": "2026-04-03T03:57:09.117Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_13",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:57:14.265Z",
+      "matchId": "ipl_2026_13",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "TOSS_WINNER",
+      "pointsEarned": -1,
+      "resolvedWinner": null,
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_14",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "DC",
+        "GT",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_14",
+      "timestamp": "2026-04-03T03:57:18.852Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_15",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "matchId": "ipl_2026_15",
+      "optionsAvailable": [
+        "KKR",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-03T03:57:22.307Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_16",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "RR",
+        "RCB",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_16",
+      "timestamp": "2026-04-03T03:57:25.978Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_17",
+      "optionsAvailable": [
+        "PBKS",
+        "SRH",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_17",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:57:30.014Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_18",
+      "matchId": "ipl_2026_18",
+      "optionsAvailable": [
+        "CSK",
+        "DC",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:57:35.745Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_19",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:57:39.302Z",
+      "optionsAvailable": [
+        "LSG",
+        "GT",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_19",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_2",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "resolvedWinner": "KKR",
+      "pointsEarned": -1,
+      "timestamp": "2026-03-29T00:56:03.874Z",
+      "matchId": "ipl_2026_2",
+      "predictedWinner": "KKR"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_20",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "MI",
+        "RCB",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_20",
+      "timestamp": "2026-04-03T03:57:42.824Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_21",
+      "timestamp": "2026-04-03T03:57:46.514Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "matchId": "ipl_2026_21",
+      "optionsAvailable": [
+        "SRH",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ]
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_22",
+      "matchId": "ipl_2026_22",
+      "optionsAvailable": [
+        "CSK",
+        "KKR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:57:50.065Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_23",
+      "timestamp": "2026-04-03T03:57:53.576Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "RCB",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_23"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_24",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "TOSS_WINNER",
+      "optionsAvailable": [
+        "MI",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_24",
+      "timestamp": "2026-04-03T03:57:57.212Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_25",
+      "optionsAvailable": [
+        "GT",
+        "KKR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_25",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "TOSS_WINNER",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:00.883Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_26",
+      "timestamp": "2026-04-03T03:58:04.136Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "TOSS_WINNER",
+      "optionsAvailable": [
+        "RCB",
+        "DC",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_26"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_27",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:07.351Z",
+      "optionsAvailable": [
+        "SRH",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_27",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_28",
+      "optionsAvailable": [
+        "KKR",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_28",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:10.778Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_29",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "PBKS",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_29",
+      "timestamp": "2026-04-03T03:58:17.951Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_3",
+      "matchId": "ipl_2026_3",
+      "predictedWinner": "RR",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "resolvedWinner": "RR",
+      "pointsEarned": 0.6,
+      "timestamp": "2026-03-30T13:43:55.609Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_30",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:23.844Z",
+      "matchId": "ipl_2026_30",
+      "optionsAvailable": [
+        "GT",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_31",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:27.350Z",
+      "optionsAvailable": [
+        "SRH",
+        "DC",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_31",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "TOSS_WINNER"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_32",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:30.348Z",
+      "matchId": "ipl_2026_32",
+      "optionsAvailable": [
+        "LSG",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_33",
+      "optionsAvailable": [
+        "MI",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_33",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:33.494Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_34",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "RCB",
+        "GT",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_34",
+      "timestamp": "2026-04-03T03:58:41.080Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_35",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "DC",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_35",
+      "timestamp": "2026-04-03T03:58:44.002Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_36",
+      "matchId": "ipl_2026_36",
+      "optionsAvailable": [
+        "RR",
+        "SRH",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-03T03:58:46.894Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_37",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "GT",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_37",
+      "timestamp": "2026-04-05T03:28:46.494Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_38",
+      "optionsAvailable": [
+        "LSG",
+        "KKR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_38",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-05T03:28:54.482Z"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_39",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "timestamp": "2026-04-05T03:28:58.198Z",
+      "optionsAvailable": [
+        "DC",
+        "RCB",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_39",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_4",
+      "predictedWinner": "GT",
+      "matchId": "ipl_2026_4",
+      "timestamp": "2026-03-30T23:13:43.690Z",
+      "pointsEarned": -1,
+      "resolvedWinner": "GT",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_5",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "DC",
+      "timestamp": "2026-04-01T01:02:23.770Z",
+      "matchId": "ipl_2026_5",
+      "predictedWinner": "TOSS_WINNER"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_6",
+      "timestamp": "2026-04-01T01:02:28.815Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "pointsEarned": -1,
+      "resolvedWinner": "KKR",
+      "predictedWinner": "KKR",
+      "matchId": "ipl_2026_6",
+      "resolvedFrom": "TOSS_WINNER"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_7",
+      "pointsEarned": -1,
+      "resolvedWinner": "CSK",
+      "initialStatus": "UPCOMING",
+      "timestamp": "2026-04-03T03:56:20.356Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "predictedWinner": "CSK",
+      "matchId": "ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "resolvedFrom": "BATTING_FIRST"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_8",
+      "predictedWinner": "DC",
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_8",
+      "timestamp": "2026-04-04T09:57:39.711Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": 1,
+      "resolvedWinner": "DC"
+    },
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1_ipl_2026_9",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_9",
+      "optionsAvailable": [
+        "GT",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-04T13:36:24.017Z",
+      "userId": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": 0.5714285714285714,
+      "resolvedWinner": "RR"
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2_ipl_2026_1",
+      "resolvedWinner": "RCB",
+      "pointsEarned": 1,
+      "userId": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "timestamp": "2026-03-29T00:41:30.671Z",
+      "matchId": "ipl_2026_1",
+      "predictedWinner": "RCB"
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2_ipl_2026_13",
+      "pointsEarned": -1,
+      "resolvedWinner": "MI",
+      "initialStatus": "UPCOMING",
+      "userId": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "timestamp": "2026-04-07T13:11:15.478Z",
+      "matchId": "ipl_2026_13",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "MI"
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2_ipl_2026_2",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_2",
+      "timestamp": "2026-03-29T15:30:30.181Z",
+      "userId": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "resolvedWinner": "MI",
+      "pointsEarned": 0.5
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2_ipl_2026_5",
+      "userId": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "DC",
+      "timestamp": "2026-03-31T20:58:20.206Z",
+      "matchId": "ipl_2026_5",
+      "predictedWinner": "DC"
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2_ipl_2026_6",
+      "timestamp": "2026-04-02T11:53:34.092Z",
+      "userId": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "predictedWinner": "KKR",
+      "optionsAvailable": [
+        "KKR",
+        "SRH",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_6",
+      "resolvedWinner": "KKR",
+      "pointsEarned": -1,
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2_ipl_2026_7",
+      "pointsEarned": -1,
+      "resolvedWinner": "CSK",
+      "initialStatus": "UPCOMING",
+      "userId": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "timestamp": "2026-04-03T10:56:21.120Z",
+      "matchId": "ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "CSK"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_10",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "resolvedWinner": "SRH",
+      "pointsEarned": -1,
+      "timestamp": "2026-03-31T13:37:21.853Z",
+      "matchId": "ipl_2026_10",
+      "predictedWinner": "SRH"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_11",
+      "predictedWinner": "RCB",
+      "matchId": "ipl_2026_11",
+      "timestamp": "2026-03-31T13:37:21.853Z",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "pointsEarned": 0.8,
+      "resolvedWinner": "RCB"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_13",
+      "pointsEarned": 1.75,
+      "resolvedWinner": "RR",
+      "initialStatus": "UPCOMING",
+      "timestamp": "2026-04-02T19:59:39.350Z",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_13",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ]
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_2",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_2",
+      "timestamp": "2026-03-29T15:29:03.618Z",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "MI"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_4",
+      "matchId": "ipl_2026_4",
+      "predictedWinner": "PBKS",
+      "resolvedWinner": "PBKS",
+      "pointsEarned": 0.5,
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "timestamp": "2026-03-31T13:37:21.852Z"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_5",
+      "matchId": "ipl_2026_5",
+      "predictedWinner": "LSG",
+      "pointsEarned": -1,
+      "resolvedWinner": "LSG",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "timestamp": "2026-03-31T13:37:21.853Z"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_6",
+      "pointsEarned": 1.75,
+      "resolvedWinner": "SRH",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "timestamp": "2026-03-31T13:37:21.853Z",
+      "matchId": "ipl_2026_6",
+      "predictedWinner": "SRH"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_7",
+      "predictedWinner": "PBKS",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "timestamp": "2026-04-03T01:09:24.634Z",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "PBKS",
+      "pointsEarned": 0.7142857142857143
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_8",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_8",
+      "timestamp": "2026-03-31T13:37:21.853Z",
+      "pointsEarned": -1,
+      "resolvedWinner": "MI",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2"
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2_ipl_2026_9",
+      "matchId": "ipl_2026_9",
+      "predictedWinner": "RR",
+      "pointsEarned": 0.5714285714285714,
+      "resolvedWinner": "RR",
+      "userId": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "timestamp": "2026-03-31T13:37:21.853Z"
+    },
+    {
+      "id": "Jk1UxEiJolabufAWBJ7o3yNZWec2_ipl_2026_1",
+      "timestamp": "2026-03-29T13:19:00.252Z",
+      "userId": "Jk1UxEiJolabufAWBJ7o3yNZWec2",
+      "resolvedWinner": "RCB",
+      "pointsEarned": 1,
+      "predictedWinner": "RCB",
+      "matchId": "ipl_2026_1"
+    },
+    {
+      "id": "Jk1UxEiJolabufAWBJ7o3yNZWec2_ipl_2026_2",
+      "matchId": "ipl_2026_2",
+      "predictedWinner": "MI",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "MI",
+      "userId": "Jk1UxEiJolabufAWBJ7o3yNZWec2",
+      "timestamp": "2026-03-29T13:09:34.905Z"
+    },
+    {
+      "id": "Jk1UxEiJolabufAWBJ7o3yNZWec2_ipl_2026_7",
+      "predictedWinner": "CSK",
+      "matchId": "ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-03T13:29:30.316Z",
+      "userId": "Jk1UxEiJolabufAWBJ7o3yNZWec2",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": -1,
+      "resolvedWinner": "CSK"
+    },
+    {
+      "id": "Jk1UxEiJolabufAWBJ7o3yNZWec2_ipl_2026_8",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "MI",
+      "pointsEarned": -1,
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_8",
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-03T13:29:42.480Z",
+      "userId": "Jk1UxEiJolabufAWBJ7o3yNZWec2"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_1",
+      "timestamp": "2026-03-28T12:25:00.255Z",
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "resolvedWinner": "RCB",
+      "pointsEarned": 1,
+      "predictedWinner": "RCB",
+      "matchId": "ipl_2026_1"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_10",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": -1,
+      "resolvedWinner": "SRH",
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_10",
+      "optionsAvailable": [
+        "SRH",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-05T00:39:37.536Z",
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_11",
+      "matchId": "ipl_2026_11",
+      "optionsAvailable": [
+        "RCB",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "RCB",
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "timestamp": "2026-04-05T00:38:01.023Z",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "RCB",
+      "pointsEarned": 0.8
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_13",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": -1,
+      "resolvedWinner": null,
+      "matchId": "ipl_2026_13",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "BATTING_SECOND",
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "timestamp": "2026-04-06T19:32:30.282Z"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_2",
+      "matchId": "ipl_2026_2",
+      "predictedWinner": "MI",
+      "resolvedWinner": "MI",
+      "pointsEarned": 0.5,
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "timestamp": "2026-03-28T12:26:36.921Z"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_4",
+      "matchId": "ipl_2026_4",
+      "predictedWinner": "GT",
+      "pointsEarned": -1,
+      "resolvedWinner": "GT",
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "timestamp": "2026-03-31T13:51:25.794Z"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_5",
+      "predictedWinner": "DC",
+      "matchId": "ipl_2026_5",
+      "timestamp": "2026-03-31T22:29:34.002Z",
+      "resolvedWinner": "DC",
+      "pointsEarned": 0.5,
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_6",
+      "timestamp": "2026-04-01T18:53:44.723Z",
+      "resolvedWinner": "KKR",
+      "pointsEarned": -1,
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "predictedWinner": "KKR",
+      "matchId": "ipl_2026_6"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_8",
+      "timestamp": "2026-04-03T20:50:17.762Z",
+      "resolvedWinner": "DC",
+      "pointsEarned": 1,
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "predictedWinner": "DC",
+      "resolvedFrom": "BATTING_SECOND",
+      "matchId": "ipl_2026_8"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2_ipl_2026_9",
+      "matchId": "ipl_2026_9",
+      "predictedWinner": "RR",
+      "pointsEarned": 0.5714285714285714,
+      "resolvedWinner": "RR",
+      "userId": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "timestamp": "2026-04-03T20:50:33.782Z"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_1",
+      "predictedWinner": "RCB",
+      "matchId": "ipl_2026_1",
+      "timestamp": "2026-03-28T12:13:27.403Z",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "pointsEarned": 1,
+      "resolvedWinner": "RCB"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_10",
+      "timestamp": "2026-04-05T01:18:35.665Z",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "predictedWinner": "LSG",
+      "matchId": "ipl_2026_10",
+      "optionsAvailable": [
+        "SRH",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "resolvedFrom": "TOSS_WINNER",
+      "pointsEarned": 1.6666666666666667,
+      "resolvedWinner": "LSG",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_11",
+      "pointsEarned": 0.8,
+      "resolvedWinner": "RCB",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "timestamp": "2026-03-30T23:21:50.265Z",
+      "matchId": "ipl_2026_11",
+      "predictedWinner": "RCB"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_12",
+      "predictedWinner": "PBKS",
+      "initialStatus": "UPCOMING",
+      "matchId": "ipl_2026_12",
+      "optionsAvailable": [
+        "KKR",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-04T21:58:47.250Z",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_13",
+      "resolvedWinner": null,
+      "pointsEarned": -1,
+      "initialStatus": "UPCOMING",
+      "timestamp": "2026-04-04T21:59:00.633Z",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "predictedWinner": "TOSS_WINNER",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_13"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_14",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "timestamp": "2026-04-04T21:59:07.069Z",
+      "optionsAvailable": [
+        "DC",
+        "GT",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_14",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_2",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_2",
+      "timestamp": "2026-03-29T04:50:54.824Z",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "MI",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_3",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_3",
+      "timestamp": "2026-03-30T02:10:06.040Z",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "pointsEarned": 0.6,
+      "resolvedWinner": "RR"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_4",
+      "predictedWinner": "PBKS",
+      "matchId": "ipl_2026_4",
+      "timestamp": "2026-03-30T20:12:23.305Z",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "PBKS",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_5",
+      "predictedWinner": "TOSS_WINNER",
+      "matchId": "ipl_2026_5",
+      "timestamp": "2026-03-31T18:52:13.348Z",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "DC",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_6",
+      "matchId": "ipl_2026_6",
+      "predictedWinner": "KKR",
+      "pointsEarned": -1,
+      "resolvedWinner": "KKR",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "timestamp": "2026-03-30T23:21:29.399Z"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_7",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "pointsEarned": 0.7142857142857143,
+      "resolvedWinner": "PBKS",
+      "timestamp": "2026-03-30T23:21:34.162Z",
+      "matchId": "ipl_2026_7",
+      "predictedWinner": "PBKS"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_8",
+      "timestamp": "2026-03-30T23:21:38.581Z",
+      "pointsEarned": -1,
+      "resolvedWinner": "MI",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_8"
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2_ipl_2026_9",
+      "timestamp": "2026-04-03T13:56:48.213Z",
+      "userId": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_9",
+      "optionsAvailable": [
+        "GT",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "resolvedFrom": "TOSS_WINNER",
+      "pointsEarned": 0.5714285714285714,
+      "resolvedWinner": "RR",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_1",
+      "resolvedWinner": "SRH",
+      "pointsEarned": -1,
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "timestamp": "2026-03-29T01:02:01.617Z",
+      "matchId": "ipl_2026_1",
+      "predictedWinner": "SRH"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_11",
+      "predictedWinner": "RCB",
+      "matchId": "ipl_2026_11",
+      "timestamp": "2026-03-31T13:13:24.532Z",
+      "resolvedWinner": "RCB",
+      "pointsEarned": 0.8,
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_12",
+      "timestamp": "2026-04-06T13:47:22.217Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "KKR",
+      "matchId": "ipl_2026_12",
+      "optionsAvailable": [
+        "KKR",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ]
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_13",
+      "matchId": "ipl_2026_13",
+      "predictedWinner": "MI",
+      "pointsEarned": -1,
+      "resolvedWinner": "MI",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "timestamp": "2026-03-31T13:13:44.051Z"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_14",
+      "predictedWinner": "DC",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "DC",
+        "GT",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_14",
+      "timestamp": "2026-04-05T17:43:27.179Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_15",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "LSG",
+      "optionsAvailable": [
+        "KKR",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_15",
+      "timestamp": "2026-04-05T17:43:03.343Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_16",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "RCB",
+      "optionsAvailable": [
+        "RR",
+        "RCB",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_16",
+      "timestamp": "2026-04-05T21:29:27.371Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_18",
+      "optionsAvailable": [
+        "CSK",
+        "DC",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_18",
+      "predictedWinner": "DC",
+      "initialStatus": "UPCOMING",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "timestamp": "2026-04-05T21:29:51.299Z"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_2",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_2",
+      "timestamp": "2026-03-29T00:55:28.422Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "resolvedWinner": "MI",
+      "pointsEarned": 0.5
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_21",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "timestamp": "2026-04-05T21:30:25.990Z",
+      "optionsAvailable": [
+        "SRH",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_21",
+      "predictedWinner": "RR",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_3",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_3",
+      "timestamp": "2026-03-29T17:51:24.716Z",
+      "resolvedWinner": "RR",
+      "pointsEarned": 0.6,
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_4",
+      "predictedWinner": "PBKS",
+      "matchId": "ipl_2026_4",
+      "timestamp": "2026-03-29T17:51:35.692Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "resolvedWinner": "PBKS",
+      "pointsEarned": 0.5
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_5",
+      "predictedWinner": "DC",
+      "matchId": "ipl_2026_5",
+      "timestamp": "2026-03-31T20:50:45.665Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "resolvedWinner": "DC",
+      "pointsEarned": 0.5
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_6",
+      "matchId": "ipl_2026_6",
+      "predictedWinner": "SRH",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "resolvedWinner": "SRH",
+      "pointsEarned": 1.75,
+      "timestamp": "2026-03-31T13:14:35.398Z"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_7",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "pointsEarned": 0.7142857142857143,
+      "resolvedWinner": "PBKS",
+      "timestamp": "2026-03-31T13:12:48.851Z",
+      "matchId": "ipl_2026_7",
+      "predictedWinner": "PBKS"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_8",
+      "matchId": "ipl_2026_8",
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "DC",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "timestamp": "2026-04-04T03:34:49.442Z",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": 1,
+      "resolvedWinner": "DC"
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2_ipl_2026_9",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_9",
+      "timestamp": "2026-03-31T13:13:04.796Z",
+      "userId": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "pointsEarned": 0.5714285714285714,
+      "resolvedWinner": "RR"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_1",
+      "predictedWinner": "RCB",
+      "matchId": "ipl_2026_1",
+      "timestamp": "2026-03-29T00:46:26.893Z",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "resolvedWinner": "RCB",
+      "pointsEarned": 1
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_10",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-04-05T05:26:14.347Z",
+      "resolvedFrom": "TOSS_WINNER",
+      "optionsAvailable": [
+        "SRH",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_10",
+      "predictedWinner": "LSG",
+      "resolvedWinner": "LSG",
+      "pointsEarned": 1.6666666666666667,
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_11",
+      "timestamp": "2026-03-31T04:13:04.335Z",
+      "resolvedWinner": "CSK",
+      "pointsEarned": -1,
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "predictedWinner": "CSK",
+      "matchId": "ipl_2026_11"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_12",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-03-31T04:13:04.335Z",
+      "matchId": "ipl_2026_12",
+      "predictedWinner": "PBKS"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_13",
+      "resolvedWinner": "RR",
+      "pointsEarned": 1.75,
+      "initialStatus": "UPCOMING",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-04-07T03:03:03.265Z",
+      "matchId": "ipl_2026_13",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "RR"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_14",
+      "optionsAvailable": [
+        "DC",
+        "GT",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_14",
+      "predictedWinner": "DC",
+      "initialStatus": "UPCOMING",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-04-07T03:03:18.573Z"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_15",
+      "optionsAvailable": [
+        "KKR",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_15",
+      "predictedWinner": "TOSS_WINNER",
+      "initialStatus": "UPCOMING",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-04-07T03:03:26.619Z"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_2",
+      "matchId": "ipl_2026_2",
+      "predictedWinner": "KKR",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "resolvedWinner": "KKR",
+      "pointsEarned": -1,
+      "timestamp": "2026-03-29T13:17:07.501Z"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_4",
+      "pointsEarned": -1,
+      "resolvedWinner": "GT",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-03-31T04:13:04.335Z",
+      "matchId": "ipl_2026_4",
+      "predictedWinner": "GT"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_5",
+      "predictedWinner": "LSG",
+      "matchId": "ipl_2026_5",
+      "timestamp": "2026-03-31T04:13:04.335Z",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "pointsEarned": -1,
+      "resolvedWinner": "LSG"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_6",
+      "predictedWinner": "KKR",
+      "matchId": "ipl_2026_6",
+      "timestamp": "2026-03-31T04:13:04.335Z",
+      "resolvedWinner": "KKR",
+      "pointsEarned": -1,
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_7",
+      "pointsEarned": -1,
+      "resolvedWinner": "CSK",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-03-31T04:13:04.335Z",
+      "matchId": "ipl_2026_7",
+      "predictedWinner": "CSK"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_8",
+      "pointsEarned": -1,
+      "resolvedWinner": "MI",
+      "initialStatus": "UPCOMING",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "timestamp": "2026-04-04T00:34:49.246Z",
+      "matchId": "ipl_2026_8",
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "MI"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2_ipl_2026_9",
+      "userId": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "resolvedWinner": "RR",
+      "pointsEarned": 0.5714285714285714,
+      "timestamp": "2026-03-31T04:13:04.335Z",
+      "matchId": "ipl_2026_9",
+      "predictedWinner": "RR"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_1",
+      "matchId": "ipl_2026_1",
+      "predictedWinner": "SRH",
+      "pointsEarned": -1,
+      "resolvedWinner": "SRH",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-03-29T13:19:38.372Z"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_10",
+      "matchId": "ipl_2026_10",
+      "optionsAvailable": [
+        "SRH",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "SRH",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-04-04T04:01:23.179Z",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "SRH",
+      "pointsEarned": -1
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_11",
+      "matchId": "ipl_2026_11",
+      "optionsAvailable": [
+        "RCB",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "CSK",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-04-04T04:01:31.159Z",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "CSK",
+      "pointsEarned": -1
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_12",
+      "optionsAvailable": [
+        "KKR",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_12",
+      "predictedWinner": "KKR",
+      "initialStatus": "UPCOMING",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-04-06T06:10:30.928Z"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_13",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "MI",
+      "pointsEarned": -1,
+      "matchId": "ipl_2026_13",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "MI",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-04-07T12:20:05.772Z"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_2",
+      "timestamp": "2026-03-29T12:57:31.480Z",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "MI",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_2"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_3",
+      "timestamp": "2026-03-30T11:38:14.442Z",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "resolvedWinner": "CSK",
+      "pointsEarned": -1,
+      "predictedWinner": "CSK",
+      "matchId": "ipl_2026_3"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_7",
+      "predictedWinner": "CSK",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-04-03T13:32:39.072Z",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "CSK",
+      "pointsEarned": -1
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_8",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": -1,
+      "resolvedWinner": "MI",
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_8",
+      "predictedWinner": "MI",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-04-04T04:01:04.628Z"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3_ipl_2026_9",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "GT",
+      "pointsEarned": -1,
+      "optionsAvailable": [
+        "GT",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_9",
+      "predictedWinner": "GT",
+      "userId": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "timestamp": "2026-04-04T04:01:14.375Z"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_12",
+      "timestamp": "2026-04-06T02:47:35.693Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "PBKS",
+      "optionsAvailable": [
+        "KKR",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_12"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_14",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "timestamp": "2026-04-07T17:52:43.749Z",
+      "matchId": "ipl_2026_14",
+      "optionsAvailable": [
+        "DC",
+        "GT",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "DC",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_15",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "LSG",
+      "optionsAvailable": [
+        "KKR",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_15",
+      "timestamp": "2026-04-07T17:53:36.913Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_16",
+      "timestamp": "2026-04-07T17:53:49.523Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "initialStatus": "UPCOMING",
+      "predictedWinner": "RR",
+      "optionsAvailable": [
+        "RR",
+        "RCB",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_16"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_17",
+      "timestamp": "2026-04-07T17:53:56.603Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "predictedWinner": "PBKS",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "PBKS",
+        "SRH",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_17"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_18",
+      "timestamp": "2026-04-07T17:54:01.782Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "predictedWinner": "DC",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "CSK",
+        "DC",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_18"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_3",
+      "matchId": "ipl_2026_3",
+      "predictedWinner": "CSK",
+      "resolvedWinner": "CSK",
+      "pointsEarned": -1,
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "timestamp": "2026-03-30T01:53:50.870Z"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_4",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "resolvedWinner": "PBKS",
+      "pointsEarned": 0.5,
+      "timestamp": "2026-03-30T22:11:59.321Z",
+      "matchId": "ipl_2026_4",
+      "predictedWinner": "PBKS"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_6",
+      "matchId": "ipl_2026_6",
+      "predictedWinner": "KKR",
+      "pointsEarned": -1,
+      "resolvedWinner": "KKR",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "timestamp": "2026-04-01T18:34:31.602Z"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_7",
+      "pointsEarned": 0.7142857142857143,
+      "resolvedWinner": "PBKS",
+      "initialStatus": "UPCOMING",
+      "timestamp": "2026-04-02T19:59:03.126Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "predictedWinner": "PBKS",
+      "matchId": "ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ]
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_8",
+      "pointsEarned": 1,
+      "resolvedWinner": "DC",
+      "initialStatus": "UPCOMING",
+      "timestamp": "2026-04-04T04:09:41.092Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "predictedWinner": "DC",
+      "matchId": "ipl_2026_8",
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ]
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2_ipl_2026_9",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "GT",
+      "pointsEarned": -1,
+      "predictedWinner": "GT",
+      "optionsAvailable": [
+        "GT",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_9",
+      "timestamp": "2026-04-04T04:10:07.365Z",
+      "userId": "kWsEtCO6ogPaR7rATZEGa0OnBJY2"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_10",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "SRH",
+      "pointsEarned": -1,
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_10",
+      "optionsAvailable": [
+        "SRH",
+        "LSG",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-05T02:09:28.187Z",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_11",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "timestamp": "2026-04-05T02:09:36.621Z",
+      "matchId": "ipl_2026_11",
+      "optionsAvailable": [
+        "RCB",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "RCB",
+      "resolvedWinner": "RCB",
+      "pointsEarned": 0.8,
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_12",
+      "timestamp": "2026-04-05T16:05:59.817Z",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "predictedWinner": "PBKS",
+      "initialStatus": "UPCOMING",
+      "optionsAvailable": [
+        "KKR",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_12"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_13",
+      "timestamp": "2026-04-07T13:26:40.488Z",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "predictedWinner": "BATTING_SECOND",
+      "matchId": "ipl_2026_13",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "resolvedWinner": null,
+      "pointsEarned": -1,
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_2",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "pointsEarned": -1,
+      "resolvedWinner": "KKR",
+      "timestamp": "2026-03-29T01:01:25.851Z",
+      "matchId": "ipl_2026_2",
+      "predictedWinner": "KKR"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_3",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_3",
+      "timestamp": "2026-03-30T01:43:32.665Z",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "pointsEarned": 0.6,
+      "resolvedWinner": "RR"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_6",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": -1,
+      "resolvedWinner": "KKR",
+      "matchId": "ipl_2026_6",
+      "optionsAvailable": [
+        "KKR",
+        "SRH",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "KKR",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "timestamp": "2026-04-02T13:43:01.304Z"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_7",
+      "predictedWinner": "PBKS",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "timestamp": "2026-04-03T13:29:17.089Z",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "PBKS",
+      "pointsEarned": 0.7142857142857143
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_8",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": 1,
+      "resolvedWinner": "DC",
+      "predictedWinner": "DC",
+      "resolvedFrom": "BATTING_SECOND",
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_8",
+      "timestamp": "2026-04-04T01:49:19.592Z",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2_ipl_2026_9",
+      "pointsEarned": -1,
+      "resolvedWinner": "GT",
+      "initialStatus": "UPCOMING",
+      "userId": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "timestamp": "2026-04-04T01:49:39.684Z",
+      "matchId": "ipl_2026_9",
+      "optionsAvailable": [
+        "GT",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "GT"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_1",
+      "timestamp": "2026-03-29T00:47:59.677Z",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "resolvedWinner": "SRH",
+      "pointsEarned": -1,
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_1"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_11",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "CSK",
+      "pointsEarned": -1,
+      "predictedWinner": "CSK",
+      "matchId": "ipl_2026_11",
+      "optionsAvailable": [
+        "RCB",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-05T11:40:32.689Z",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_12",
+      "optionsAvailable": [
+        "KKR",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_12",
+      "predictedWinner": "PBKS",
+      "initialStatus": "UPCOMING",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "timestamp": "2026-04-06T13:56:34.798Z"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_13",
+      "resolvedWinner": "RR",
+      "pointsEarned": 1.75,
+      "initialStatus": "UPCOMING",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "timestamp": "2026-04-07T13:57:47.525Z",
+      "optionsAvailable": [
+        "RR",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_13",
+      "predictedWinner": "RR"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_2",
+      "predictedWinner": "KKR",
+      "matchId": "ipl_2026_2",
+      "timestamp": "2026-03-29T13:57:06.439Z",
+      "pointsEarned": -1,
+      "resolvedWinner": "KKR",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_3",
+      "matchId": "ipl_2026_3",
+      "predictedWinner": "RR",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "resolvedWinner": "RR",
+      "pointsEarned": 0.6,
+      "timestamp": "2026-03-30T13:47:13.333Z"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_4",
+      "predictedWinner": "PBKS",
+      "matchId": "ipl_2026_4",
+      "timestamp": "2026-03-31T13:13:33.213Z",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "PBKS",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_5",
+      "predictedWinner": "LSG",
+      "matchId": "ipl_2026_5",
+      "timestamp": "2026-04-01T11:09:45.855Z",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "pointsEarned": -1,
+      "resolvedWinner": "LSG"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_6",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": 1.75,
+      "resolvedWinner": "SRH",
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_6",
+      "optionsAvailable": [
+        "KKR",
+        "SRH",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-02T13:52:00.893Z",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_7",
+      "resolvedWinner": "PBKS",
+      "pointsEarned": 0.7142857142857143,
+      "initialStatus": "UPCOMING",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "timestamp": "2026-04-03T13:25:33.719Z",
+      "matchId": "ipl_2026_7",
+      "optionsAvailable": [
+        "CSK",
+        "PBKS",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "predictedWinner": "PBKS"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_8",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "DC",
+      "pointsEarned": 1,
+      "optionsAvailable": [
+        "DC",
+        "MI",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_8",
+      "predictedWinner": "DC",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "timestamp": "2026-04-04T03:30:03.175Z"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42_ipl_2026_9",
+      "timestamp": "2026-04-04T11:44:57.632Z",
+      "userId": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "predictedWinner": "RR",
+      "matchId": "ipl_2026_9",
+      "optionsAvailable": [
+        "GT",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "pointsEarned": 0.5714285714285714,
+      "resolvedWinner": "RR",
+      "initialStatus": "UPCOMING"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_1",
+      "timestamp": "2026-03-28T02:21:01.920Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "pointsEarned": -1,
+      "resolvedWinner": "SRH",
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_1"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_10",
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_10",
+      "timestamp": "2026-03-27T18:51:19.048Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "resolvedWinner": "SRH",
+      "pointsEarned": -1
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_11",
+      "initialStatus": "UPCOMING",
+      "resolvedWinner": "CSK",
+      "pointsEarned": -1,
+      "predictedWinner": "CSK",
+      "optionsAvailable": [
+        "RCB",
+        "CSK",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "matchId": "ipl_2026_11",
+      "resolvedFrom": "TOSS_WINNER",
+      "timestamp": "2026-04-05T12:20:26.076Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_12",
+      "timestamp": "2026-03-27T18:51:20.614Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "predictedWinner": "PBKS",
+      "matchId": "ipl_2026_12"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_13",
+      "matchId": "ipl_2026_13",
+      "predictedWinner": "RR",
+      "resolvedWinner": "RR",
+      "pointsEarned": 1.75,
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:23.441Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_15",
+      "timestamp": "2026-03-27T18:51:25.384Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "predictedWinner": "LSG",
+      "matchId": "ipl_2026_15"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_16",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:28.986Z",
+      "matchId": "ipl_2026_16",
+      "predictedWinner": "RR"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_19",
+      "matchId": "ipl_2026_19",
+      "predictedWinner": "LSG",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T15:32:31.835Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_2",
+      "timestamp": "2026-03-27T23:04:55.933Z",
+      "resolvedWinner": "MI",
+      "pointsEarned": 0.5,
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "predictedWinner": "MI",
+      "matchId": "ipl_2026_2"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_20",
+      "matchId": "ipl_2026_20",
+      "predictedWinner": "MI",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:34.456Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_21",
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_21",
+      "timestamp": "2026-03-27T18:51:31.931Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_22",
+      "matchId": "ipl_2026_22",
+      "predictedWinner": "KKR",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:30.966Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_23",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:37.612Z",
+      "matchId": "ipl_2026_23",
+      "predictedWinner": "RCB"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_24",
+      "matchId": "ipl_2026_24",
+      "predictedWinner": "MI",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:38.561Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_26",
+      "matchId": "ipl_2026_26",
+      "predictedWinner": "RCB",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:40.577Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_27",
+      "predictedWinner": "SRH",
+      "matchId": "ipl_2026_27",
+      "timestamp": "2026-03-27T18:51:42.327Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_28",
+      "timestamp": "2026-03-27T18:51:43.321Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "predictedWinner": "KKR",
+      "matchId": "ipl_2026_28"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_29",
+      "predictedWinner": "PBKS",
+      "matchId": "ipl_2026_29",
+      "timestamp": "2026-03-27T18:51:45.059Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_3",
+      "predictedWinner": "CSK",
+      "matchId": "ipl_2026_3",
+      "timestamp": "2026-03-27T19:07:28.033Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "pointsEarned": -1,
+      "resolvedWinner": "CSK"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_30",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:50.189Z",
+      "matchId": "ipl_2026_30",
+      "predictedWinner": "GT"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_31",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:52.285Z",
+      "matchId": "ipl_2026_31",
+      "predictedWinner": "DC"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_32",
+      "predictedWinner": "LSG",
+      "matchId": "ipl_2026_32",
+      "timestamp": "2026-03-27T18:51:53.926Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_33",
+      "matchId": "ipl_2026_33",
+      "predictedWinner": "MI",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:56.714Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_34",
+      "timestamp": "2026-03-27T18:51:58.762Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "predictedWinner": "GT",
+      "matchId": "ipl_2026_34"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_39",
+      "timestamp": "2026-03-27T18:52:08.971Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "predictedWinner": "DC",
+      "matchId": "ipl_2026_39"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_4",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "pointsEarned": 0.5,
+      "resolvedWinner": "PBKS",
+      "timestamp": "2026-03-27T17:46:56.762Z",
+      "matchId": "ipl_2026_4",
+      "predictedWinner": "PBKS"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_44",
+      "matchId": "ipl_2026_44",
+      "predictedWinner": "CSK",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:52:13.861Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_45",
+      "predictedWinner": "KKR",
+      "matchId": "ipl_2026_45",
+      "timestamp": "2026-03-27T18:52:15.057Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_47",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:52:17.989Z",
+      "matchId": "ipl_2026_47",
+      "predictedWinner": "LSG"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_48",
+      "matchId": "ipl_2026_48",
+      "predictedWinner": "DC",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:52:20.119Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_49",
+      "matchId": "ipl_2026_49",
+      "predictedWinner": "SRH",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:52:22.730Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_5",
+      "timestamp": "2026-03-27T17:42:05.688Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "resolvedWinner": "DC",
+      "pointsEarned": 0.5,
+      "predictedWinner": "DC",
+      "matchId": "ipl_2026_5"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_51",
+      "timestamp": "2026-03-27T18:52:24.512Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "predictedWinner": "DC",
+      "matchId": "ipl_2026_51"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_56",
+      "matchId": "ipl_2026_56",
+      "predictedWinner": "GT",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:52:28.652Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_6",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "resolvedWinner": "SRH",
+      "pointsEarned": 1.75,
+      "timestamp": "2026-03-31T17:58:46.694Z",
+      "matchId": "ipl_2026_6",
+      "predictedWinner": "SRH"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_7",
+      "pointsEarned": 0.7142857142857143,
+      "resolvedWinner": "PBKS",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-31T17:59:07.162Z",
+      "resolvedFrom": "TOSS_WINNER",
+      "matchId": "ipl_2026_7",
+      "predictedWinner": "PBKS"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_8",
+      "resolvedWinner": "MI",
+      "pointsEarned": -1,
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T18:51:17.200Z",
+      "matchId": "ipl_2026_8",
+      "predictedWinner": "MI"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_ipl_2026_9",
+      "predictedWinner": "GT",
+      "matchId": "ipl_2026_9",
+      "optionsAvailable": [
+        "GT",
+        "RR",
+        "TOSS_WINNER",
+        "BATTING_FIRST",
+        "BATTING_SECOND"
+      ],
+      "timestamp": "2026-04-03T23:25:00.786Z",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "initialStatus": "UPCOMING",
+      "pointsEarned": -1,
+      "resolvedWinner": "GT"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_match_10",
+      "matchId": "match_10",
+      "predictedWinner": "RR",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T01:58:56.372Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_match_11",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T02:02:32.346Z",
+      "matchId": "match_11",
+      "predictedWinner": "LSG"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_match_18",
+      "matchId": "match_18",
+      "predictedWinner": "DC",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T15:32:29.121Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_match_7",
+      "matchId": "match_7",
+      "predictedWinner": "MI",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T02:16:17.800Z"
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2_match_8",
+      "userId": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "timestamp": "2026-03-27T02:16:49.930Z",
+      "matchId": "match_8",
+      "predictedWinner": "SRH"
+    }
+  ],
+  "matches": [
+    {
+      "id": "ipl_2026_1",
+      "homeTeam": "RCB",
+      "winner": "RCB",
+      "venue": "M. Chinnaswamy Stadium, Bengaluru",
+      "date": "2026-03-28T14:00:00Z",
+      "status": "COMPLETED",
+      "awayScore": null,
+      "type": "REGULAR",
+      "awayTeam": "SRH",
+      "awayVotes": 5,
+      "homeScore": null,
+      "dateIST": null,
+      "homeVotes": 5,
+      "votes": {
+        "away": 5,
+        "home": 5,
+        "SRH": 5,
+        "RCB": 5
+      }
+    },
+    {
+      "id": "ipl_2026_10",
+      "battingFirst": "SRH",
+      "completedAt": "2026-04-05T13:56:13.532Z",
+      "date": "2026-04-05T10:00:00Z",
+      "status": "COMPLETED",
+      "awayScore": "160/5 (19.5)",
+      "homeTeam": "SRH",
+      "venue": "Rajiv Gandhi International Stadium, Hyderabad",
+      "winner": "LSG",
+      "homeVotes": 5,
+      "votes": {
+        "home": 2,
+        "TOSS_WINNER": 0,
+        "SRH": 5,
+        "LSG": 3,
+        "away": 1
+      },
+      "type": "REGULAR",
+      "summary": "LSG won by 5 wickets",
+      "awayTeam": "LSG",
+      "awayVotes": 3,
+      "tossWinner": "LSG",
+      "homeScore": "156/9 (20)"
+    },
+    {
+      "id": "ipl_2026_11",
+      "type": "REGULAR",
+      "summary": "RCB won by 43 runs",
+      "awayTeam": "CSK",
+      "awayVotes": 4,
+      "tossWinner": "CSK",
+      "homeScore": "250/3 (20)",
+      "homeVotes": 5,
+      "votes": {
+        "CSK": 4,
+        "home": 3,
+        "away": 1,
+        "TOSS_WINNER": 0,
+        "RCB": 5
+      },
+      "homeTeam": "RCB",
+      "winner": "RCB",
+      "venue": "M. Chinnaswamy Stadium, Bengaluru",
+      "date": "2026-04-05T14:00:00Z",
+      "battingFirst": "RCB",
+      "completedAt": "2026-04-05T17:48:31.726Z",
+      "status": "COMPLETED",
+      "awayScore": "207/9 (20)"
+    },
+    {
+      "id": "ipl_2026_12",
+      "homeTeam": "KKR",
+      "venue": "Eden Gardens, Kolkata",
+      "winner": "ABANDONED",
+      "battingFirst": "KKR",
+      "date": "2026-04-06T14:00:00Z",
+      "status": "ABANDONED",
+      "tossWinner": "KKR",
+      "awayVotes": 6,
+      "homeScore": "25/2 (3.4)",
+      "type": "REGULAR",
+      "awayTeam": "PBKS",
+      "summary": "Match abandoned due to rain.",
+      "votes": {
+        "home": 0,
+        "PBKS": 6,
+        "KKR": 3,
+        "TOSS_WINNER": 0,
+        "away": 2
+      },
+      "homeVotes": 3
+    },
+    {
+      "id": "ipl_2026_13",
+      "completedAt": "2026-04-07T18:21:39.525Z",
+      "battingFirst": "RR",
+      "date": "2026-04-07T14:00:00Z",
+      "status": "COMPLETED",
+      "awayScore": "74/8 (11)",
+      "homeTeam": "RR",
+      "venue": "ACA Stadium, Guwahati",
+      "winner": "RR",
+      "homeVotes": 4,
+      "votes": {
+        "BATTING_SECOND": 2,
+        "away": 2,
+        "TOSS_WINNER": 2,
+        "RR": 4,
+        "MI": 3,
+        "home": 1
+      },
+      "type": "REGULAR",
+      "awayTeam": "MI",
+      "summary": "Rajasthan Royals won by 76 runs in a rain-curtailed 11-over match. Yashasvi Jaiswal starred with an unbeaten 77 off 32 balls.",
+      "tossWinner": "MI",
+      "awayVotes": 3,
+      "homeScore": "150/3 (11)"
+    },
+    {
+      "id": "ipl_2026_14",
+      "type": "REGULAR",
+      "homeTeam": "DC",
+      "venue": "Arun Jaitley Stadium, Delhi",
+      "awayTeam": "GT",
+      "awayVotes": 0,
+      "date": "2026-04-08T14:00:00Z",
+      "homeVotes": 3,
+      "status": "UPCOMING",
+      "votes": {
+        "TOSS_WINNER": 2,
+        "GT": 0,
+        "away": 1,
+        "DC": 3,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_15",
+      "venue": "Eden Gardens, Kolkata",
+      "awayTeam": "LSG",
+      "type": "REGULAR",
+      "homeTeam": "KKR",
+      "awayVotes": 3,
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "date": "2026-04-09T14:00:00Z",
+      "votes": {
+        "TOSS_WINNER": 2,
+        "LSG": 3,
+        "home": 0,
+        "away": 1
+      }
+    },
+    {
+      "id": "ipl_2026_16",
+      "type": "REGULAR",
+      "homeTeam": "RR",
+      "awayTeam": "RCB",
+      "venue": "Guwahati",
+      "awayVotes": 1,
+      "date": "2026-04-10T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 2,
+      "votes": {
+        "RR": 2,
+        "home": 1,
+        "away": 0,
+        "RCB": 1,
+        "TOSS_WINNER": 1
+      }
+    },
+    {
+      "id": "ipl_2026_17",
+      "date": "2026-04-11T05:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "votes": {
+        "PBKS": 1,
+        "home": 0,
+        "TOSS_WINNER": 1,
+        "away": 0
+      },
+      "type": "REGULAR",
+      "homeTeam": "PBKS",
+      "venue": "New Chandigarh",
+      "awayTeam": "SRH",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_18",
+      "date": "2026-04-11T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "votes": {
+        "DC": 2,
+        "TOSS_WINNER": 1,
+        "home": 0,
+        "away": 0
+      },
+      "homeTeam": "CSK",
+      "type": "REGULAR",
+      "awayTeam": "DC",
+      "venue": "Chennai",
+      "awayVotes": 2
+    },
+    {
+      "id": "ipl_2026_19",
+      "type": "REGULAR",
+      "homeTeam": "LSG",
+      "awayTeam": "GT",
+      "venue": "Lucknow",
+      "awayVotes": 0,
+      "date": "2026-04-12T05:00:00-05:00",
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "votes": {
+        "away": 0,
+        "home": 1,
+        "LSG": 1,
+        "TOSS_WINNER": 1
+      }
+    },
+    {
+      "id": "ipl_2026_2",
+      "homeTeam": "MI",
+      "venue": "Wankhede Stadium, Mumbai",
+      "winner": "MI",
+      "awayScore": "220/4 (20)",
+      "date": "2026-03-29T14:00:00Z",
+      "battingFirst": null,
+      "status": "COMPLETED",
+      "tossWinner": null,
+      "awayVotes": 4,
+      "homeScore": "221/4 (19.1)",
+      "type": "REGULAR",
+      "awayTeam": "KKR",
+      "summary": "MI won by 6 wickets",
+      "votes": {
+        "home": 8,
+        "KKR": 4,
+        "away": 4,
+        "MI": 8
+      },
+      "homeVotes": 8
+    },
+    {
+      "id": "ipl_2026_20",
+      "votes": {
+        "TOSS_WINNER": 1,
+        "home": 1,
+        "away": 0,
+        "MI": 1
+      },
+      "date": "2026-04-12T09:00:00-05:00",
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "awayVotes": 0,
+      "homeTeam": "MI",
+      "type": "REGULAR",
+      "venue": "Mumbai",
+      "awayTeam": "RCB"
+    },
+    {
+      "id": "ipl_2026_21",
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "date": "2026-04-13T14:00:00Z",
+      "votes": {
+        "away": 0,
+        "SRH": 1,
+        "TOSS_WINNER": 1,
+        "RR": 1,
+        "home": 1
+      },
+      "awayTeam": "RR",
+      "venue": "Rajiv Gandhi International Stadium, Hyderabad",
+      "type": "REGULAR",
+      "homeTeam": "SRH",
+      "awayVotes": 1
+    },
+    {
+      "id": "ipl_2026_22",
+      "venue": "Chennai",
+      "awayTeam": "KKR",
+      "homeTeam": "CSK",
+      "type": "REGULAR",
+      "awayVotes": 1,
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "dateIST": "14 Apr 2026, 7:30 PM IST",
+      "date": "2026-04-14T09:00:00-05:00",
+      "votes": {
+        "KKR": 1,
+        "away": 1,
+        "TOSS_WINNER": 1,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_23",
+      "homeTeam": "RCB",
+      "type": "REGULAR",
+      "awayTeam": "LSG",
+      "venue": "Bengaluru",
+      "awayVotes": 0,
+      "date": "2026-04-15T09:00:00-05:00",
+      "dateIST": "15 Apr 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "votes": {
+        "away": 0,
+        "home": 1,
+        "RCB": 1,
+        "TOSS_WINNER": 1
+      }
+    },
+    {
+      "id": "ipl_2026_24",
+      "votes": {
+        "MI": 1,
+        "away": 0,
+        "home": 1,
+        "TOSS_WINNER": 1
+      },
+      "date": "2026-04-16T09:00:00-05:00",
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "dateIST": "16 Apr 2026, 7:30 PM IST",
+      "awayVotes": 0,
+      "homeTeam": "MI",
+      "type": "REGULAR",
+      "venue": "Mumbai",
+      "awayTeam": "PBKS"
+    },
+    {
+      "id": "ipl_2026_25",
+      "votes": {
+        "TOSS_WINNER": 1,
+        "home": 0,
+        "away": 0
+      },
+      "date": "2026-04-17T09:00:00-05:00",
+      "dateIST": "17 Apr 2026, 7:30 PM IST",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "awayVotes": 0,
+      "homeTeam": "GT",
+      "type": "REGULAR",
+      "awayTeam": "KKR",
+      "venue": "Ahmedabad"
+    },
+    {
+      "id": "ipl_2026_26",
+      "dateIST": "18 Apr 2026, 3:30 PM IST",
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "date": "2026-04-18T05:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "home": 1,
+        "TOSS_WINNER": 1,
+        "RCB": 1
+      },
+      "awayTeam": "DC",
+      "venue": "Bengaluru",
+      "homeTeam": "RCB",
+      "type": "REGULAR",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_27",
+      "awayTeam": "CSK",
+      "venue": "Hyderabad",
+      "homeTeam": "SRH",
+      "type": "REGULAR",
+      "awayVotes": 0,
+      "dateIST": "18 Apr 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "date": "2026-04-18T09:00:00-05:00",
+      "votes": {
+        "home": 1,
+        "SRH": 1,
+        "TOSS_WINNER": 1,
+        "away": 0
+      }
+    },
+    {
+      "id": "ipl_2026_28",
+      "awayVotes": 0,
+      "type": "REGULAR",
+      "homeTeam": "KKR",
+      "awayTeam": "RR",
+      "venue": "Kolkata",
+      "votes": {
+        "away": 0,
+        "KKR": 1,
+        "home": 1,
+        "TOSS_WINNER": 1
+      },
+      "date": "2026-04-19T05:00:00-05:00",
+      "dateIST": "19 Apr 2026, 3:30 PM IST",
+      "homeVotes": 1,
+      "status": "UPCOMING"
+    },
+    {
+      "id": "ipl_2026_29",
+      "votes": {
+        "TOSS_WINNER": 1,
+        "PBKS": 1,
+        "home": 1,
+        "away": 0
+      },
+      "dateIST": "19 Apr 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "date": "2026-04-19T09:00:00-05:00",
+      "awayVotes": 0,
+      "awayTeam": "LSG",
+      "venue": "New Chandigarh",
+      "type": "REGULAR",
+      "homeTeam": "PBKS"
+    },
+    {
+      "id": "ipl_2026_3",
+      "homeTeam": "RR",
+      "venue": "ACA Stadium, Guwahati",
+      "winner": "RR",
+      "awayScore": "127 (19.4)",
+      "date": "2026-03-30T14:00:00Z",
+      "battingFirst": "CSK",
+      "status": "COMPLETED",
+      "tossWinner": "RR",
+      "awayVotes": 3,
+      "homeScore": "128/2 (12.1)",
+      "type": "REGULAR",
+      "awayTeam": "CSK",
+      "summary": "RR won by 8 wickets",
+      "votes": {
+        "home": 5,
+        "CSK": 3,
+        "away": 3,
+        "RR": 5
+      },
+      "homeVotes": 5
+    },
+    {
+      "id": "ipl_2026_30",
+      "awayVotes": 0,
+      "venue": "Ahmedabad",
+      "awayTeam": "MI",
+      "homeTeam": "GT",
+      "type": "REGULAR",
+      "votes": {
+        "home": 1,
+        "TOSS_WINNER": 1,
+        "GT": 1,
+        "away": 0
+      },
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "dateIST": "20 Apr 2026, 7:30 PM IST",
+      "date": "2026-04-20T09:00:00-05:00"
+    },
+    {
+      "id": "ipl_2026_31",
+      "homeTeam": "SRH",
+      "type": "REGULAR",
+      "venue": "Hyderabad",
+      "awayTeam": "DC",
+      "awayVotes": 1,
+      "date": "2026-04-21T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "21 Apr 2026, 7:30 PM IST",
+      "votes": {
+        "home": 0,
+        "TOSS_WINNER": 1,
+        "DC": 1,
+        "away": 1
+      }
+    },
+    {
+      "id": "ipl_2026_32",
+      "awayVotes": 0,
+      "venue": "Lucknow",
+      "awayTeam": "RR",
+      "type": "REGULAR",
+      "homeTeam": "LSG",
+      "votes": {
+        "away": 0,
+        "home": 1,
+        "LSG": 1,
+        "TOSS_WINNER": 1
+      },
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "dateIST": "22 Apr 2026, 7:30 PM IST",
+      "date": "2026-04-22T09:00:00-05:00"
+    },
+    {
+      "id": "ipl_2026_33",
+      "date": "2026-04-23T09:00:00-05:00",
+      "dateIST": "23 Apr 2026, 7:30 PM IST",
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "votes": {
+        "TOSS_WINNER": 1,
+        "home": 1,
+        "MI": 1,
+        "away": 0
+      },
+      "type": "REGULAR",
+      "homeTeam": "MI",
+      "awayTeam": "CSK",
+      "venue": "Mumbai",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_34",
+      "votes": {
+        "away": 1,
+        "GT": 1,
+        "home": 0,
+        "TOSS_WINNER": 1
+      },
+      "dateIST": "24 Apr 2026, 7:30 PM IST",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "date": "2026-04-24T09:00:00-05:00",
+      "awayVotes": 1,
+      "awayTeam": "GT",
+      "venue": "Bengaluru",
+      "homeTeam": "RCB",
+      "type": "REGULAR"
+    },
+    {
+      "id": "ipl_2026_35",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "dateIST": "25 Apr 2026, 3:30 PM IST",
+      "date": "2026-04-25T05:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "TOSS_WINNER": 1,
+        "home": 0
+      },
+      "venue": "Delhi",
+      "awayTeam": "PBKS",
+      "type": "REGULAR",
+      "homeTeam": "DC",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_36",
+      "dateIST": "25 Apr 2026, 7:30 PM IST",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "date": "2026-04-25T09:00:00-05:00",
+      "votes": {
+        "home": 0,
+        "TOSS_WINNER": 1,
+        "away": 0
+      },
+      "awayTeam": "SRH",
+      "venue": "Jaipur",
+      "homeTeam": "RR",
+      "type": "REGULAR",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_37",
+      "awayVotes": 0,
+      "venue": "Ahmedabad",
+      "awayTeam": "CSK",
+      "type": "REGULAR",
+      "homeTeam": "GT",
+      "votes": {
+        "away": 0,
+        "TOSS_WINNER": 1,
+        "home": 0
+      },
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "26 Apr 2026, 3:30 PM IST",
+      "date": "2026-04-26T05:00:00-05:00"
+    },
+    {
+      "id": "ipl_2026_38",
+      "type": "REGULAR",
+      "homeTeam": "LSG",
+      "venue": "Lucknow",
+      "awayTeam": "KKR",
+      "awayVotes": 0,
+      "date": "2026-04-26T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "26 Apr 2026, 7:30 PM IST",
+      "votes": {
+        "TOSS_WINNER": 1,
+        "home": 0,
+        "away": 0
+      }
+    },
+    {
+      "id": "ipl_2026_39",
+      "votes": {
+        "TOSS_WINNER": 1,
+        "DC": 1,
+        "home": 1,
+        "away": 0
+      },
+      "date": "2026-04-27T09:00:00-05:00",
+      "dateIST": "27 Apr 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "awayVotes": 0,
+      "homeTeam": "DC",
+      "type": "REGULAR",
+      "awayTeam": "RCB",
+      "venue": "Delhi"
+    },
+    {
+      "id": "ipl_2026_4",
+      "votes": {
+        "GT": 3,
+        "away": 3,
+        "PBKS": 6,
+        "home": 6
+      },
+      "homeVotes": 6,
+      "homeScore": "163/7 (19.1)",
+      "tossWinner": "PBKS",
+      "awayVotes": 3,
+      "awayTeam": "GT",
+      "summary": "PBKS won by 3 wickets",
+      "type": "REGULAR",
+      "awayScore": "162/6 (20)",
+      "status": "COMPLETED",
+      "date": "2026-03-31T14:00:00Z",
+      "battingFirst": "GT",
+      "completedAt": "2026-03-31T17:59:55.327Z",
+      "venue": "Maharaja Yadavindra Singh International Cricket Stadium, New Chandigarh",
+      "winner": "PBKS",
+      "homeTeam": "PBKS"
+    },
+    {
+      "id": "ipl_2026_40",
+      "date": "2026-04-28T09:00:00-05:00",
+      "dateIST": "28 Apr 2026, 7:30 PM IST",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "homeTeam": "PBKS",
+      "type": "REGULAR",
+      "awayTeam": "RR",
+      "venue": "New Chandigarh",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_41",
+      "type": "REGULAR",
+      "homeTeam": "MI",
+      "venue": "Mumbai",
+      "awayTeam": "SRH",
+      "awayVotes": 0,
+      "date": "2026-04-29T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "29 Apr 2026, 7:30 PM IST",
+      "votes": {
+        "away": 0,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_42",
+      "awayTeam": "RCB",
+      "venue": "Ahmedabad",
+      "type": "REGULAR",
+      "homeTeam": "GT",
+      "awayVotes": 0,
+      "dateIST": "30 Apr 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "date": "2026-04-30T09:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_43",
+      "awayVotes": 0,
+      "homeTeam": "RR",
+      "type": "REGULAR",
+      "venue": "Jaipur",
+      "awayTeam": "DC",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "date": "2026-05-01T09:00:00-05:00",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "dateIST": "01 May 2026, 7:30 PM IST"
+    },
+    {
+      "id": "ipl_2026_44",
+      "date": "2026-05-02T09:00:00-05:00",
+      "dateIST": "02 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "votes": {
+        "home": 1,
+        "CSK": 1,
+        "away": 0
+      },
+      "type": "REGULAR",
+      "homeTeam": "CSK",
+      "awayTeam": "MI",
+      "venue": "Chennai",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_45",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "03 May 2026, 3:30 PM IST",
+      "date": "2026-05-03T05:00:00-05:00",
+      "votes": {
+        "KKR": 1,
+        "away": 1,
+        "home": 0
+      },
+      "venue": "Hyderabad",
+      "awayTeam": "KKR",
+      "type": "REGULAR",
+      "homeTeam": "SRH",
+      "awayVotes": 1
+    },
+    {
+      "id": "ipl_2026_46",
+      "date": "2026-05-03T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "03 May 2026, 7:30 PM IST",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "type": "REGULAR",
+      "homeTeam": "GT",
+      "venue": "Ahmedabad",
+      "awayTeam": "PBKS",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_47",
+      "awayTeam": "LSG",
+      "venue": "Mumbai",
+      "type": "REGULAR",
+      "homeTeam": "MI",
+      "awayVotes": 1,
+      "dateIST": "04 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "date": "2026-05-04T09:00:00-05:00",
+      "votes": {
+        "home": 0,
+        "LSG": 1,
+        "away": 1
+      }
+    },
+    {
+      "id": "ipl_2026_48",
+      "homeTeam": "DC",
+      "type": "REGULAR",
+      "venue": "Delhi",
+      "awayTeam": "CSK",
+      "awayVotes": 0,
+      "date": "2026-05-05T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "dateIST": "05 May 2026, 7:30 PM IST",
+      "votes": {
+        "away": 0,
+        "home": 1,
+        "DC": 1
+      }
+    },
+    {
+      "id": "ipl_2026_49",
+      "date": "2026-05-06T09:00:00-05:00",
+      "dateIST": "06 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 1,
+      "votes": {
+        "away": 0,
+        "home": 1,
+        "SRH": 1
+      },
+      "homeTeam": "SRH",
+      "type": "REGULAR",
+      "awayTeam": "PBKS",
+      "venue": "Hyderabad",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_5",
+      "homeVotes": 3,
+      "votes": {
+        "DC": 4,
+        "home": 3,
+        "away": 4,
+        "TOSS_WINNER": 2,
+        "LSG": 3
+      },
+      "type": "REGULAR",
+      "summary": "DC won by 6 wickets",
+      "awayTeam": "DC",
+      "awayVotes": 4,
+      "tossWinner": "DC",
+      "homeScore": "141 (18.4)",
+      "date": "2026-04-01T14:00:00Z",
+      "battingFirst": "LSG",
+      "completedAt": "2026-04-01T17:51:41.015Z",
+      "status": "COMPLETED",
+      "awayScore": "145/4 (17.1)",
+      "homeTeam": "LSG",
+      "winner": "DC",
+      "venue": "Bharat Ratna Shri Atal Bihari Vajpayee Ekana Cricket Stadium, Lucknow"
+    },
+    {
+      "id": "ipl_2026_50",
+      "date": "2026-05-07T09:00:00-05:00",
+      "dateIST": "07 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "homeTeam": "LSG",
+      "type": "REGULAR",
+      "awayTeam": "RCB",
+      "venue": "Lucknow",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_51",
+      "awayVotes": 0,
+      "venue": "Delhi",
+      "awayTeam": "KKR",
+      "homeTeam": "DC",
+      "type": "REGULAR",
+      "votes": {
+        "away": 0,
+        "home": 1,
+        "DC": 1
+      },
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "dateIST": "08 May 2026, 7:30 PM IST",
+      "date": "2026-05-08T09:00:00-05:00"
+    },
+    {
+      "id": "ipl_2026_52",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "dateIST": "09 May 2026, 7:30 PM IST",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "date": "2026-05-09T09:00:00-05:00",
+      "awayVotes": 0,
+      "awayTeam": "GT",
+      "venue": "Jaipur",
+      "homeTeam": "RR",
+      "type": "REGULAR"
+    },
+    {
+      "id": "ipl_2026_53",
+      "awayVotes": 0,
+      "venue": "Chennai",
+      "awayTeam": "LSG",
+      "homeTeam": "CSK",
+      "type": "REGULAR",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "10 May 2026, 3:30 PM IST",
+      "date": "2026-05-10T05:00:00-05:00"
+    },
+    {
+      "id": "ipl_2026_54",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "date": "2026-05-10T09:00:00-05:00",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "dateIST": "10 May 2026, 7:30 PM IST",
+      "awayVotes": 0,
+      "homeTeam": "RCB",
+      "type": "REGULAR",
+      "venue": "Raipur",
+      "awayTeam": "MI"
+    },
+    {
+      "id": "ipl_2026_55",
+      "awayVotes": 0,
+      "venue": "Dharamshala",
+      "awayTeam": "DC",
+      "homeTeam": "PBKS",
+      "type": "REGULAR",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "dateIST": "11 May 2026, 7:30 PM IST",
+      "date": "2026-05-11T09:00:00-05:00"
+    },
+    {
+      "id": "ipl_2026_56",
+      "awayVotes": 0,
+      "awayTeam": "SRH",
+      "venue": "Ahmedabad",
+      "homeTeam": "GT",
+      "type": "REGULAR",
+      "votes": {
+        "home": 1,
+        "away": 0,
+        "GT": 1
+      },
+      "dateIST": "12 May 2026, 7:30 PM IST",
+      "homeVotes": 1,
+      "status": "UPCOMING",
+      "date": "2026-05-12T09:00:00-05:00"
+    },
+    {
+      "id": "ipl_2026_57",
+      "dateIST": "13 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "date": "2026-05-13T09:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "awayTeam": "KKR",
+      "venue": "Raipur",
+      "homeTeam": "RCB",
+      "type": "REGULAR",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_58",
+      "awayTeam": "MI",
+      "venue": "Dharamshala",
+      "type": "REGULAR",
+      "homeTeam": "PBKS",
+      "awayVotes": 0,
+      "dateIST": "14 May 2026, 7:30 PM IST",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "date": "2026-05-14T09:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_59",
+      "dateIST": "15 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "date": "2026-05-15T09:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "awayTeam": "CSK",
+      "venue": "Lucknow",
+      "homeTeam": "LSG",
+      "type": "REGULAR",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_6",
+      "venue": "Eden Gardens, Kolkata",
+      "winner": "SRH",
+      "homeTeam": "KKR",
+      "awayScore": "226/8 (20)",
+      "status": "COMPLETED",
+      "date": "2026-04-02T14:00:00Z",
+      "completedAt": "2026-04-02T17:37:59.901Z",
+      "battingFirst": "SRH",
+      "homeScore": "161/10 (16.0)",
+      "awayVotes": 4,
+      "tossWinner": "KKR",
+      "summary": "SRH won by 65 runs",
+      "awayTeam": "SRH",
+      "type": "REGULAR",
+      "votes": {
+        "TOSS_WINNER": 0,
+        "SRH": 4,
+        "away": 3,
+        "home": 4,
+        "KKR": 7
+      },
+      "homeVotes": 7
+    },
+    {
+      "id": "ipl_2026_60",
+      "awayVotes": 0,
+      "type": "REGULAR",
+      "homeTeam": "KKR",
+      "venue": "Kolkata",
+      "awayTeam": "GT",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "date": "2026-05-16T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "16 May 2026, 7:30 PM IST"
+    },
+    {
+      "id": "ipl_2026_61",
+      "homeTeam": "PBKS",
+      "type": "REGULAR",
+      "venue": "Dharamshala",
+      "awayTeam": "RCB",
+      "awayVotes": 0,
+      "date": "2026-05-17T05:00:00-05:00",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "dateIST": "17 May 2026, 3:30 PM IST",
+      "votes": {
+        "away": 0,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_62",
+      "date": "2026-05-17T09:00:00-05:00",
+      "dateIST": "17 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "homeTeam": "DC",
+      "type": "REGULAR",
+      "awayTeam": "RR",
+      "venue": "Delhi",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_63",
+      "date": "2026-05-18T09:00:00-05:00",
+      "dateIST": "18 May 2026, 7:30 PM IST",
+      "homeVotes": 0,
+      "status": "UPCOMING",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "type": "REGULAR",
+      "homeTeam": "CSK",
+      "awayTeam": "SRH",
+      "venue": "Chennai",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_64",
+      "awayTeam": "LSG",
+      "venue": "Jaipur",
+      "homeTeam": "RR",
+      "type": "REGULAR",
+      "awayVotes": 0,
+      "dateIST": "19 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "date": "2026-05-19T09:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_65",
+      "date": "2026-05-20T09:00:00-05:00",
+      "dateIST": "20 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "homeTeam": "KKR",
+      "type": "REGULAR",
+      "awayTeam": "MI",
+      "venue": "Kolkata",
+      "awayVotes": 0
+    },
+    {
+      "id": "ipl_2026_66",
+      "venue": "Chennai",
+      "awayTeam": "GT",
+      "homeTeam": "CSK",
+      "type": "REGULAR",
+      "awayVotes": 0,
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "21 May 2026, 7:30 PM IST",
+      "date": "2026-05-21T09:00:00-05:00",
+      "votes": {
+        "away": 0,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_67",
+      "awayVotes": 0,
+      "type": "REGULAR",
+      "homeTeam": "SRH",
+      "awayTeam": "RCB",
+      "venue": "Hyderabad",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "date": "2026-05-22T09:00:00-05:00",
+      "dateIST": "22 May 2026, 7:30 PM IST",
+      "status": "UPCOMING",
+      "homeVotes": 0
+    },
+    {
+      "id": "ipl_2026_68",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "23 May 2026, 7:30 PM IST",
+      "date": "2026-05-23T09:00:00-05:00",
+      "awayVotes": 0,
+      "venue": "Lucknow",
+      "awayTeam": "PBKS",
+      "type": "REGULAR",
+      "homeTeam": "LSG"
+    },
+    {
+      "id": "ipl_2026_69",
+      "votes": {
+        "away": 0,
+        "home": 0
+      },
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "24 May 2026, 3:30 PM IST",
+      "date": "2026-05-24T05:00:00-05:00",
+      "awayVotes": 0,
+      "venue": "Mumbai",
+      "awayTeam": "RR",
+      "type": "REGULAR",
+      "homeTeam": "MI"
+    },
+    {
+      "id": "ipl_2026_7",
+      "summary": "Punjab Kings won by 5 wickets after successfully chasing a target of 210. Shreyas Iyer scored 50 for PBKS, overshadowing Ayush Mhatre's 73 for CSK.",
+      "awayTeam": "PBKS",
+      "type": "REGULAR",
+      "homeScore": "209/5 (20)",
+      "awayVotes": 7,
+      "tossWinner": "PBKS",
+      "homeVotes": 5,
+      "votes": {
+        "CSK": 5,
+        "home": 1,
+        "PBKS": 7,
+        "BATTING_FIRST": 0,
+        "TOSS_WINNER": 0,
+        "away": 3
+      },
+      "winner": "PBKS",
+      "venue": "MA Chidambaram Stadium, Chennai",
+      "homeTeam": "CSK",
+      "status": "COMPLETED",
+      "date": "2026-04-03T14:00:00Z",
+      "battingFirst": "CSK",
+      "completedAt": "2026-04-03T18:00:12.965Z",
+      "awayScore": "210/5 (18.4)"
+    },
+    {
+      "id": "ipl_2026_70",
+      "homeTeam": "KKR",
+      "type": "REGULAR",
+      "venue": "Kolkata",
+      "awayTeam": "DC",
+      "awayVotes": 0,
+      "date": "2026-05-24T09:00:00-05:00",
+      "status": "UPCOMING",
+      "homeVotes": 0,
+      "dateIST": "24 May 2026, 7:30 PM IST",
+      "votes": {
+        "away": 0,
+        "home": 0
+      }
+    },
+    {
+      "id": "ipl_2026_8",
+      "awayScore": "162/6 (20)",
+      "status": "COMPLETED",
+      "battingFirst": "MI",
+      "completedAt": "2026-04-04T13:36:49.037Z",
+      "date": "2026-04-04T10:00:00Z",
+      "venue": "Arun Jaitley Stadium, Delhi",
+      "winner": "DC",
+      "homeTeam": "DC",
+      "votes": {
+        "DC": 6,
+        "home": 0,
+        "BATTING_FIRST": 0,
+        "MI": 6,
+        "BATTING_SECOND": 0,
+        "away": 4
+      },
+      "homeVotes": 6,
+      "homeScore": "164/4 (18.2)",
+      "tossWinner": "DC",
+      "awayVotes": 6,
+      "awayTeam": "MI",
+      "summary": "DC won by 6 wickets",
+      "type": "REGULAR"
+    },
+    {
+      "id": "ipl_2026_9",
+      "winner": "RR",
+      "venue": "Narendra Modi Stadium, Ahmedabad",
+      "homeTeam": "GT",
+      "awayScore": "210/6 (20)",
+      "status": "COMPLETED",
+      "date": "2026-04-04T14:00:00Z",
+      "battingFirst": "RR",
+      "completedAt": "2026-04-04T17:59:04.038Z",
+      "homeScore": "204/8 (20)",
+      "awayVotes": 6,
+      "tossWinner": "RR",
+      "summary": "RR won by 6 runs",
+      "awayTeam": "RR",
+      "type": "REGULAR",
+      "votes": {
+        "RR": 6,
+        "BATTING_FIRST": 0,
+        "home": 0,
+        "GT": 4,
+        "away": 3,
+        "BATTING_SECOND": 0,
+        "TOSS_WINNER": 0
+      },
+      "homeVotes": 4
+    }
+  ]
+}

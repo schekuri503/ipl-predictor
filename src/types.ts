@@ -1,4 +1,4 @@
-export type MatchStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED';
+export type MatchStatus = 'UPCOMING' | 'LIVE' | 'COMPLETED' | 'ABANDONED';
 export type MatchType = 'REGULAR' | 'QUARTER_FINAL' | 'SEMI_FINAL' | 'FINAL';
 
 export interface Match {
@@ -21,7 +21,13 @@ export interface Match {
   };
   homeVotes?: number;
   awayVotes?: number;
+  votes?: Record<string, number>;
   summary?: string;
+  completedAt?: string; // ISO string
+  winnerPoints?: number;
+  totalLosers?: number;
+  totalSkippersLosingPoints?: number;
+  totalWinners?: number;
 }
 
 export interface UserProfile {
@@ -33,16 +39,26 @@ export interface UserProfile {
   email?: string;
   emailVerified?: boolean;
   role?: 'admin' | 'user';
+  form?: ('W' | 'L' | 'S')[]; // Last 5 results: Win, Loss, Skip
+  title?: string; // e.g., "The Oracle", "Skip King"
 }
+
+// Prediction types for dynamic winner resolution
+// TOSS_WINNER: resolves to the team that won the toss
+// BATTING_FIRST: resolves to the team that batted first
+// BATTING_SECOND: resolves to the team that batted second (fielded first)
+export type DynamicPrediction = 'TOSS_WINNER' | 'BATTING_FIRST' | 'BATTING_SECOND';
 
 export interface Prediction {
   id: string; // userId_matchId
   userId: string;
   matchId: string;
-  predictedWinner: string;
-  tossWinner?: string;       // which team wins toss
-  battingChoice?: 'BAT' | 'BOWL'; // toss winner elects to bat or bowl
+  predictedWinner: string; // team code OR DynamicPrediction
   timestamp: string;
+  optionsAvailable?: string[]; // History of what options the user had
+  initialStatus?: MatchStatus; // Match status when prediction was made
+  resolvedWinner?: string; // The actual team it resolved to
+  pointsEarned?: number; // Points earned for this prediction
 }
 
 export interface LeaderboardEntry extends UserProfile {

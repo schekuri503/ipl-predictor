@@ -45,19 +45,31 @@ export const fetchOfficialResult = async (match: Match) => {
     trackGeminiCall(1);
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `What was the official result of the IPL 2026 match between ${match.homeTeam} and ${match.awayTeam} played on ${match.date}? 
+      contents: `What was the official result of the IPL 2026 match between ${match.homeTeam} and ${match.awayTeam} played on ${match.date}?
+      
+      CRITICAL: 
+      1. If the match is still in progress (LIVE), return status: "LIVE".
+      2. Only return "COMPLETED" if the match has officially concluded with a final result.
+      3. If the match was abandoned or called off due to rain/other reasons, return status: "ABANDONED" and winner: "ABANDONED".
+      4. Double-check the date ${match.date} to ensure you are looking at the correct match in 2026.
+      
       Return a JSON object with:
       - winner: The team code (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS) or "DRAW" or "ABANDONED".
-      - status: "COMPLETED" or "ABANDONED".
-      - homeScore: The final score for ${match.homeTeam} (e.g. "185/4").
-      - awayScore: The final score for ${match.awayTeam} (e.g. "172/8").
-      - scoreSummary: A brief string of the final score.`,
+      - status: "COMPLETED" or "ABANDONED" or "LIVE".
+      - homeScore: The final score for ${match.homeTeam} (e.g. "185/4 (20)").
+      - awayScore: The final score for ${match.awayTeam} (e.g. "172/8 (20)").
+      - tossWinner: The team code that won the toss (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS).
+      - battingFirst: The team code that batted first.
+      - summary: A brief 1-2 sentence match summary (e.g. "CSK won by 5 wickets. Ruturaj scored 82*").`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
       },
     });
-    return JSON.parse(response.text);
+    const text = response.text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : text;
+    return JSON.parse(jsonStr);
   } catch (error) {
     console.error("Error fetching official result", error);
     return null;
@@ -70,19 +82,26 @@ export const fetchLiveMatchData = async (match: Match) => {
     const response = await ai.models.generateContent({
       model: "gemini-3-flash-preview",
       contents: `What is the current live status of the IPL 2026 cricket match: ${match.homeTeam} vs ${match.awayTeam} scheduled on ${match.dateIST} at ${match.venue}?
-      Check iplt20.com, ESPNcricinfo, or any reliable cricket source.
+      Current Date/Time (UTC): ${new Date().toISOString()}
+      Check official sources like iplt20.com. Ensure you are checking the correct match for the year 2026.
+      
       Return a JSON object with:
-      - status: "UPCOMING" if not started yet, "LIVE" if currently being played, "COMPLETED" if finished
+      - status: "UPCOMING", "LIVE", or "COMPLETED"
       - winner: The winning team code (CSK, MI, RCB, KKR, SRH, GT, LSG, RR, DC, PBKS) if completed, null otherwise
-      - homeScore: Current/final score for ${match.homeTeam} (e.g. "185/4 (20)"), null if not available
-      - awayScore: Current/final score for ${match.awayTeam}, null if not available
-      - summary: Brief status description (e.g. "CSK won by 5 wickets" or "MI batting - 120/3 (15.2)")`,
+      - homeScore: Current/final score for ${match.homeTeam} (e.g. "185/4 (20)")
+      - awayScore: Current/final score for ${match.awayTeam}
+      - tossWinner: Winning team code
+      - battingFirst: BATTING first team code
+      - summary: Brief description`,
       config: {
         tools: [{ googleSearch: {} }],
         responseMimeType: "application/json",
       },
     });
-    return JSON.parse(response.text);
+    const text = response.text;
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonStr = jsonMatch ? jsonMatch[0] : text;
+    return JSON.parse(jsonStr);
   } catch (error) {
     console.error("Error fetching live match data", error);
     return null;

@@ -1,0 +1,171 @@
+{
+  "timestamp": "2026-04-15T18:56:55.279Z",
+  "count": 13,
+  "users": [
+    {
+      "id": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "skipsUsed": 1,
+      "uid": "1qYgKfcsWsbn20jW9orW2P6ZUJn1",
+      "form": [
+        "W"
+      ],
+      "displayName": "Aravind Mathukumalli",
+      "totalPoints": 1.1416666666666675,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLue_ZUzCqpWUcxoKC1Ig4Xtoee3cvGPhyHp8K93Jzbnx0pEwnK=s96-c",
+      "role": "user"
+    },
+    {
+      "id": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "displayName": "Srinivas C",
+      "form": [
+        "L"
+      ],
+      "uid": "6AREeNzSb0Uiny60QrBeGyygipS2",
+      "skipsUsed": 8,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocKroCbVx8CbDh7suwxd_il7aWhbArXItjz-PT2pcD24asiPrA=s96-c",
+      "role": "user",
+      "totalPoints": -2.0857142857142854
+    },
+    {
+      "id": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "role": "user",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocJgQYy4nrHUgRrVMXlLBiw8w_BZ1p59RALo9vQCROHEPIkhJOYY=s96-c",
+      "totalPoints": 6.68452380952381,
+      "email": "siddharthkallem@gmail.com",
+      "displayName": "Siddharth Kallem",
+      "form": [
+        "W"
+      ],
+      "uid": "CCwF7fOXwVRPzapTxQQJJ17hhky2",
+      "skipsUsed": 3
+    },
+    {
+      "id": "Jk1UxEiJolabufAWBJ7o3yNZWec2",
+      "email": "karthikramya8082@gmail.com",
+      "totalPoints": -3.5,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocI8MyYf7p4TqSofgJUpCR4XwZR0EeT8P2Xg1FTgLR-2bvcbDQ=s96-c",
+      "role": "user",
+      "skipsUsed": 15,
+      "uid": "Jk1UxEiJolabufAWBJ7o3yNZWec2",
+      "form": [
+        "L"
+      ],
+      "displayName": "karthikeyan balaram"
+    },
+    {
+      "id": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "email": "sanagapalli4fun@gmail.com",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLCX9ttAwNDfd65pN8NjOxUdt_BFab9zNZ4_3SYqLnGDLuOTQ=s96-c",
+      "role": "user",
+      "totalPoints": 4.460714285714285,
+      "uid": "ODLDBg1DkLcZBRauL7wm5tywA2L2",
+      "skipsUsed": 3,
+      "displayName": "Sanagapalli",
+      "form": [
+        "W"
+      ]
+    },
+    {
+      "id": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "uid": "S6sFbJE0X8e6vxXpjIDoLlVAk2m2",
+      "skipsUsed": 0,
+      "displayName": "Narsi Kallem",
+      "form": [
+        "W"
+      ],
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocICdJJKPDhF1iYXxDYfi-UT8hIT0Bll35Dp-eUAEzx7nZzuBu1O=s96-c",
+      "role": "user",
+      "totalPoints": 2.522619047619048
+    },
+    {
+      "id": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "displayName": "Bhogavalli Suresh",
+      "form": [
+        "S"
+      ],
+      "uid": "VL19xbije4WuCiQwp6T4h8OWNdK2",
+      "skipsUsed": 6,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocIVFmLrKVSZIZlyGeRXS8xh_0aoJceDhnJSuEF2NtlMFwUg4w=s96-c",
+      "role": "user",
+      "totalPoints": 1.3642857142857148,
+      "email": "bhogavalli.suresh@gmail.com"
+    },
+    {
+      "id": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "skipsUsed": 1,
+      "uid": "dCfZnaPAbqPg6AkD5EpsiBhWMBF2",
+      "form": [
+        "W"
+      ],
+      "displayName": "Siva Kumar Cheekula",
+      "totalPoints": -9.208333333333334,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLLodYlC8Uv521mMdWd6kLO9jDq8-HD91Wq0wlo-z7nKLdXlqdv=s96-c",
+      "role": "user"
+    },
+    {
+      "id": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "displayName": "Sreedhar Narsini",
+      "form": [
+        "S"
+      ],
+      "uid": "ge4JOrl8hoRR8H3xi1S27kzJcGF3",
+      "skipsUsed": 6,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocK0E77aEwtq7ckFuDa67V9rdYZyBAA7n8Sh0Vlz94luS2VaYA=s96-c",
+      "role": "user",
+      "totalPoints": -9.69047619047619,
+      "email": "sreedhar.narsini@gmail.com"
+    },
+    {
+      "id": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "email": "tejabikkina9@gmail.com",
+      "totalPoints": -3.261904761904762,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocKDY0hyPTKMc3c2jsSRJTReg9kqDTpltBws-aV0GWh-OGfX4w=s96-c",
+      "role": "user",
+      "skipsUsed": 7,
+      "uid": "kWsEtCO6ogPaR7rATZEGa0OnBJY2",
+      "form": [
+        "L"
+      ],
+      "displayName": "Teja Bikkina"
+    },
+    {
+      "id": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "form": [
+        "W"
+      ],
+      "displayName": "siva madala",
+      "skipsUsed": 5,
+      "uid": "oS0G0yymxbPMheY54ajhJzQ1J3J2",
+      "totalPoints": 2.451190476190477,
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocKP5fTzF8HrzKxmuE_LFg7sob0JiVRFnnHs1vAvnXAV91IL-w=s96-c",
+      "role": "user",
+      "email": "siva.madala4@gmail.com"
+    },
+    {
+      "id": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocLTsrRtsakB1OFjwwWKs0n11on4pSTkeY0Akq4XdutkD2dPT34=s96-c",
+      "role": "user",
+      "totalPoints": 6.355952380952382,
+      "displayName": "Sarath Hari",
+      "form": [
+        "W"
+      ],
+      "uid": "r2u9uOXk0PRvSm7umYXNx5Dsph42",
+      "skipsUsed": 1
+    },
+    {
+      "id": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "email": "s.chaitanya.503@gmail.com",
+      "role": "admin",
+      "photoURL": "https://lh3.googleusercontent.com/a/ACg8ocJN7XDYgQr-7R78lvdOgv3OMi4DoB2uwT5Hwdt2XW8R5zZY5GNG=s96-c",
+      "totalPoints": 2.765476190476191,
+      "uid": "xtcf60360CUji3hpRUa7UfM43lr2",
+      "skipsUsed": 0,
+      "emailVerified": true,
+      "displayName": "siva chaitanya chekuri",
+      "form": [
+        "W"
+      ]
+    }
+  ]
+}

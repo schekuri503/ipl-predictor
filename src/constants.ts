@@ -12,7 +12,7 @@ export const TEAMS = {
   DC: { name: 'Delhi Capitals', color: '#00008B', logo: 'https://scores.iplt20.com/ipl/teamlogos/DC.png' },
   PBKS: { name: 'Punjab Kings', color: '#D71920', logo: 'https://scores.iplt20.com/ipl/teamlogos/PBKS.png' },
 };
-export const APP_LOGO = "/ipl-adda-logo.jpeg";
+export const APP_LOGO = "/ipl-adda-logo.png";
 
 export const INITIAL_MATCHES: Match[] = [
   { id: 'ipl_2026_1', homeTeam: 'RCB', awayTeam: 'SRH', date: '2026-03-28T09:00:00-05:00', dateIST: '28 Mar 2026, 7:30 PM IST', venue: 'Bengaluru', status: 'UPCOMING', type: 'REGULAR', odds: { home: 1.85, away: 2.10 }, homeVotes: 0, awayVotes: 0 },
@@ -26,7 +26,7 @@ export const INITIAL_MATCHES: Match[] = [
   { id: 'ipl_2026_9', homeTeam: 'GT', awayTeam: 'RR', date: '2026-04-04T09:00:00-05:00', dateIST: '04 Apr 2026, 7:30 PM IST', venue: 'Ahmedabad', status: 'UPCOMING', type: 'REGULAR', odds: { home: 1.90, away: 2.05 }, homeVotes: 0, awayVotes: 0 },
   { id: 'ipl_2026_10', homeTeam: 'SRH', awayTeam: 'LSG', date: '2026-04-05T05:00:00-05:00', dateIST: '05 Apr 2026, 3:30 PM IST', venue: 'Hyderabad', status: 'UPCOMING', type: 'REGULAR', odds: { home: 1.85, away: 2.10 }, homeVotes: 0, awayVotes: 0 },
   { id: 'ipl_2026_11', homeTeam: 'RCB', awayTeam: 'CSK', date: '2026-04-05T09:00:00-05:00', dateIST: '05 Apr 2026, 7:30 PM IST', venue: 'Bengaluru', status: 'UPCOMING', type: 'REGULAR', odds: { home: 2.00, away: 1.95 }, homeVotes: 0, awayVotes: 0 },
-  { id: 'ipl_2026_12', homeTeam: 'KKR', awayTeam: 'PBKS', date: '2026-04-06T09:00:00-05:00', dateIST: '06 Apr 2026, 7:30 PM IST', venue: 'Kolkata', status: 'UPCOMING', type: 'REGULAR', odds: { home: 1.75, away: 2.25 }, homeVotes: 0, awayVotes: 0 },
+  { id: 'ipl_2026_12', homeTeam: 'KKR', awayTeam: 'PBKS', date: '2026-04-06T09:00:00-05:00', dateIST: '06 Apr 2026, 7:30 PM IST', venue: 'Kolkata', status: 'ABANDONED', winner: 'ABANDONED', type: 'REGULAR', odds: { home: 1.75, away: 2.25 }, homeVotes: 0, awayVotes: 0 },
   { id: 'ipl_2026_13', homeTeam: 'RR', awayTeam: 'MI', date: '2026-04-07T09:00:00-05:00', dateIST: '07 Apr 2026, 7:30 PM IST', venue: 'Guwahati', status: 'UPCOMING', type: 'REGULAR', odds: { home: 2.10, away: 1.85 }, homeVotes: 0, awayVotes: 0 },
   { id: 'ipl_2026_14', homeTeam: 'DC', awayTeam: 'GT', date: '2026-04-08T09:00:00-05:00', dateIST: '08 Apr 2026, 7:30 PM IST', venue: 'Delhi', status: 'UPCOMING', type: 'REGULAR', odds: { home: 2.25, away: 1.75 }, homeVotes: 0, awayVotes: 0 },
   { id: 'ipl_2026_15', homeTeam: 'KKR', awayTeam: 'LSG', date: '2026-04-09T09:00:00-05:00', dateIST: '09 Apr 2026, 7:30 PM IST', venue: 'Kolkata', status: 'UPCOMING', type: 'REGULAR', odds: { home: 1.80, away: 2.20 }, homeVotes: 0, awayVotes: 0 },
@@ -89,3 +89,40 @@ export const INITIAL_MATCHES: Match[] = [
 ];
 
 export const TOTAL_SKIPS_ALLOWED = 15;
+
+export const WIN_MESSAGES = [
+  "Absolute Legend! 🏆",
+  "Jay Shah wants to know your location! 📄",
+  "You're seeing the future! 🔮",
+  "Thala for a reason! 7️⃣",
+  "Genius at work! 🧠",
+  "Ambati Rayudu is impressed! 👏",
+  "Calculated risk, massive reward! 💰",
+  "Predictor Pro! 📈",
+  "Mastermind! 🌟",
+  "You own this game! 👑"
+];
+
+export const LOSS_MESSAGES = [
+  "Better luck next time, champ! 🤡",
+  "Gambhir is not happy with this... 😠",
+  "Did you consult a parrot for this? 🦜",
+  "Even the best get clean bowled! 🏏",
+  "The script went wrong! 🎭",
+  "Zero points, but 100% effort! 😅",
+  "The pitch was doctored! 🏟️",
+  "Ouch, so close! 💔",
+  "The duck is real! 🦆",
+  "Swing and a miss! 🏏"
+];
+
+export const ABANDONED_MESSAGES = [
+  "Indra Dev had other plans! ⛈️",
+  "Grab some samosas, it's a washout! 🥟",
+  "Duckworth-Lewis couldn't even save this. 📏",
+  "The only thing running is the rain. 🏃‍♂️🌧️",
+  "Rain 1 - Cricket 0. Match called off. ☔",
+  "Nature wins! Match abandoned. 🍃",
+  "The clouds won this round! ⛈️",
+  "Stumps drawn early due to rain. 🏏"
+];
