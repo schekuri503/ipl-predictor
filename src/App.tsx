@@ -1618,12 +1618,13 @@ function PredictorApp() {
                 .filter(m => matchFilter === 'completed' ? m.status === 'COMPLETED' : m.status !== 'COMPLETED')
                 .sort((a, b) => {
                   try {
-                    if (matchFilter === 'live-upcoming') {
-                      const aToday = isToday(parseISO(a.date));
-                      const bToday = isToday(parseISO(b.date));
-                      if (aToday && !bToday) return -1;
-                      if (!aToday && bToday) return 1;
+                    if (matchFilter === 'completed') {
+                      return new Date(b.date).getTime() - new Date(a.date).getTime();
                     }
+                    const aToday = isToday(parseISO(a.date));
+                    const bToday = isToday(parseISO(b.date));
+                    if (aToday && !bToday) return -1;
+                    if (!aToday && bToday) return 1;
                     return new Date(a.date).getTime() - new Date(b.date).getTime();
                   } catch (e) {
                     return 0;
